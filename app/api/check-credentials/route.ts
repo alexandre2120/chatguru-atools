@@ -38,12 +38,13 @@ export async function POST(request: NextRequest) {
         // This number is intentionally invalid: +00 00 90000-0000
         const testNumber = '00009000000000';
         
-        const response = await fetch(`${baseUrl}/chat_add`, {
+        const response = await fetch(baseUrl, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/x-www-form-urlencoded',
           },
           body: formEncodedRequest({
+            action: 'chat_add',
             key,
             account_id: accountId,
             phone_id: phoneId,

@@ -20,21 +20,21 @@ export function formEncodedRequest(params: Record<string, any>): string {
 
 /**
  * Make a request to ChatGuru API
+ * Note: ChatGuru uses a single endpoint with 'action' parameter
  */
 export async function chatGuruRequest(
   server: string,
-  endpoint: string,
+  action: string,
   params: Record<string, any>
 ): Promise<any> {
   const baseUrl = `https://${server}.chatguru.app/api/v1`;
-  const url = `${baseUrl}/${endpoint}`;
 
-  const response = await fetch(url, {
+  const response = await fetch(baseUrl, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/x-www-form-urlencoded',
     },
-    body: formEncodedRequest(params),
+    body: formEncodedRequest({ action, ...params }),
   });
 
   if (!response.ok) {

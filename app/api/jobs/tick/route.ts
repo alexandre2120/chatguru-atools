@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient } from '@/lib/supabase/server';
-import { toFormUrlEncoded } from '@/utils/form';
+import { formEncodedRequest } from '@/utils/chatguru';
 import type { UploadItem } from '@/types/database';
 
 const MOCK_CHATGURU = process.env.MOCK_CHATGURU === 'true';
@@ -157,7 +157,7 @@ async function processAddChat(item: UploadItem, workspaceHash: string, supabase:
       phone_id: credentials.phoneId,
       chat_number: item.chat_number,
       name: item.name,
-      text: item.text?.trim() || ' ',
+      text: item.text?.trim() || '',  // formEncodedRequest will handle empty text
       user_id: item.user_id || '',
       dialog_id: item.dialog_id || '',
     };
@@ -167,7 +167,7 @@ async function processAddChat(item: UploadItem, workspaceHash: string, supabase:
       headers: {
         'Content-Type': 'application/x-www-form-urlencoded',
       },
-      body: toFormUrlEncoded(body),
+      body: formEncodedRequest(body),
     });
 
     const result = await response.json();
@@ -260,7 +260,7 @@ async function processCheckStatus(item: UploadItem, workspaceHash: string, supab
       headers: {
         'Content-Type': 'application/x-www-form-urlencoded',
       },
-      body: toFormUrlEncoded(body),
+      body: formEncodedRequest(body),
     });
 
     const result = await response.json();
