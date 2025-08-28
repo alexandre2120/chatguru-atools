@@ -5,7 +5,15 @@ import type { UploadItem } from '@/types/database';
 
 const MOCK_CHATGURU = process.env.MOCK_CHATGURU === 'true';
 
+export async function GET(request: NextRequest) {
+  return handleTickRequest(request);
+}
+
 export async function POST(request: NextRequest) {
+  return handleTickRequest(request);
+}
+
+async function handleTickRequest(request: NextRequest) {
   try {
     // Verify cron secret (for Vercel Cron)
     const authHeader = request.headers.get('authorization');
@@ -123,7 +131,7 @@ async function processAddChat(item: UploadItem, workspaceHash: string, supabase:
     
     if (MOCK_CHATGURU) {
       // Mock response
-      const mockChatAddId = `mock_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      const mockChatAddId = `mock_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
       
       await supabase
         .from('upload_items')
@@ -372,7 +380,7 @@ async function updateUploadStats(uploadId: string, supabase: any) {
     .eq('id', uploadId);
 }
 
-async function getCredentials(workspaceHash: string) {
+async function getCredentials(_workspaceHash: string) {
   // In a real app, you would securely retrieve credentials
   // For now, returning mock credentials
   return {

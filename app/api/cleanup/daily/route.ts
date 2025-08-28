@@ -1,7 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient } from '@/lib/supabase/server';
 
+export async function GET(request: NextRequest) {
+  return handleCleanupRequest(request);
+}
+
 export async function POST(request: NextRequest) {
+  return handleCleanupRequest(request);
+}
+
+async function handleCleanupRequest(request: NextRequest) {
   try {
     // Verify cron secret
     const authHeader = request.headers.get('authorization');
