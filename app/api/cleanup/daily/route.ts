@@ -10,15 +10,15 @@ export async function POST(request: NextRequest) {
     }
 
     const supabase = createServerClient();
-    const thirtyDaysAgo = new Date();
-    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+    const fortyFiveDaysAgo = new Date();
+    fortyFiveDaysAgo.setDate(fortyFiveDaysAgo.getDate() - 45);
 
     // Delete old completed uploads and their items (cascade will handle items)
     const { data: deletedUploads, error: deleteError } = await supabase
       .from('uploads')
       .delete()
       .eq('status', 'completed')
-      .lt('completed_at', thirtyDaysAgo.toISOString())
+      .lt('completed_at', fortyFiveDaysAgo.toISOString())
       .select();
 
     if (deleteError) {
@@ -33,7 +33,7 @@ export async function POST(request: NextRequest) {
     const { data: deletedLogs, error: logsError } = await supabase
       .from('run_logs')
       .delete()
-      .lt('at', thirtyDaysAgo.toISOString())
+      .lt('at', fortyFiveDaysAgo.toISOString())
       .select();
 
     return NextResponse.json({

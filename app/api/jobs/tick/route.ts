@@ -297,6 +297,15 @@ async function processCheckStatus(item: UploadItem, workspaceHash: string, supab
 }
 
 async function updateUploadStats(uploadId: string, supabase: any) {
+  // Get upload info with workspace
+  const { data: upload } = await supabase
+    .from('uploads')
+    .select('*, workspaces!inner(account_id)')
+    .eq('id', uploadId)
+    .single();
+
+  if (!upload) return;
+
   // Count items by state
   const { data: stats } = await supabase
     .from('upload_items')
@@ -312,6 +321,8 @@ async function updateUploadStats(uploadId: string, supabase: any) {
     failed: 0,
     total: stats.length,
   };
+
+  let previousSucceeded = upload.succeeded_rows || 0;
 
   stats.forEach((item: any) => {
     switch (item.state) {
@@ -333,6 +344,20 @@ async function updateUploadStats(uploadId: string, supabase: any) {
 
   const processed = counts.succeeded + counts.failed;
   const isCompleted = processed === counts.total;
+  
+  // Track new successful additions
+  const newSuccessful = counts.succeeded - previousSucceeded;
+  if (newSuccessful > 0 && upload.workspaces?.account_id) {
+    // Record usage for this account
+    await supabase
+      .from('usage_tracking')
+      .insert({
+        account_id: upload.workspaces.account_id,
+        workspace_hash: upload.workspace_hash,
+        upload_id: uploadId,
+        chats_added: newSuccessful,
+      });
+  }
 
   await supabase
     .from('uploads')

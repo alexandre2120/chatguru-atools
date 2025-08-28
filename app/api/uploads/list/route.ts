@@ -7,7 +7,7 @@ export async function GET(request: NextRequest) {
 
     if (!workspaceHash) {
       return NextResponse.json(
-        { error: 'Missing workspace hash' },
+        { error: 'Identificação do workspace ausente' },
         { status: 400 }
       );
     }
@@ -25,7 +25,7 @@ export async function GET(request: NextRequest) {
     if (error) {
       console.error('Error fetching uploads:', error);
       return NextResponse.json(
-        { error: 'Failed to fetch uploads' },
+        { error: 'Erro ao buscar uploads' },
         { status: 500 }
       );
     }
@@ -42,7 +42,7 @@ export async function GET(request: NextRequest) {
   } catch (error) {
     console.error('Error in list uploads:', error);
     return NextResponse.json(
-      { error: 'Internal server error' },
+      { error: 'Erro interno do servidor' },
       { status: 500 }
     );
   }

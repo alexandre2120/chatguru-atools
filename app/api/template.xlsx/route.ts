@@ -36,7 +36,7 @@ export async function POST() {
   } catch (error) {
     console.error('Error generating template:', error);
     return NextResponse.json(
-      { error: 'Failed to generate template' },
+      { error: 'Erro ao gerar template. Tente novamente' },
       { status: 500 }
     );
   }

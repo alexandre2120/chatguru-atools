@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Download, Upload, Eye, AlertCircle, Loader2 } from "lucide-react";
+import { Download, Upload, Eye, AlertCircle, Loader2, CheckCircle, XCircle } from "lucide-react";
 import Link from "next/link";
 import { workspaceHash } from "@/utils/hash";
 import { Button } from "@/components/ui/button";
@@ -10,6 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Progress } from "@/components/ui/progress";
 import type { Upload as UploadType } from "@/types/database";
 
 interface Credentials {
@@ -17,6 +18,13 @@ interface Credentials {
   key: string;
   accountId: string;
   phoneId: string;
+}
+
+interface UsageInfo {
+  total: number;
+  limit: number;
+  remaining: number;
+  percentage: number;
 }
 
 export default function AddChatsPage() {
@@ -31,6 +39,11 @@ export default function AddChatsPage() {
   const [uploads, setUploads] = useState<UploadType[]>([]);
   const [hasActiveUploads, setHasActiveUploads] = useState(false);
   const [loadingUploads, setLoadingUploads] = useState(false);
+  const [credentialsValidated, setCredentialsValidated] = useState(false);
+  const [validatingCredentials, setValidatingCredentials] = useState(false);
+  const [credentialError, setCredentialError] = useState<string | null>(null);
+  const [usage, setUsage] = useState<UsageInfo | null>(null);
+  const [limitReached, setLimitReached] = useState(false);
 
   useEffect(() => {
     const saved = localStorage.getItem("chatguru_credentials");
@@ -39,7 +52,7 @@ export default function AddChatsPage() {
         const parsed = JSON.parse(saved);
         setCredentials(parsed);
         setRemember(true);
-        fetchUploads(parsed);
+        // Don't fetch uploads automatically, require credential validation
       } catch (e) {
         console.error("Failed to load saved credentials");
       }
@@ -81,14 +94,13 @@ export default function AddChatsPage() {
   const handleCredentialChange = async (field: keyof Credentials, value: string) => {
     const newCreds = { ...credentials, [field]: value };
     setCredentials(newCreds);
+    
+    // Reset validation state when credentials change
+    setCredentialsValidated(false);
+    setCredentialError(null);
 
     if (remember) {
       localStorage.setItem("chatguru_credentials", JSON.stringify(newCreds));
-    }
-
-    // Fetch uploads when all credentials are filled
-    if (newCreds.server && newCreds.key && newCreds.accountId && newCreds.phoneId) {
-      fetchUploads(newCreds);
     }
   };
 
@@ -101,13 +113,68 @@ export default function AddChatsPage() {
     }
   };
 
+  const handleCheckCredentials = async () => {
+    if (!credentials.server || !credentials.key || !credentials.accountId || !credentials.phoneId) {
+      setCredentialError("Por favor, preencha todas as credenciais");
+      return;
+    }
+
+    setValidatingCredentials(true);
+    setCredentialError(null);
+
+    try {
+      const response = await fetch("/api/check-credentials", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(credentials),
+      });
+
+      const result = await response.json();
+
+      if (result.valid) {
+        setCredentialsValidated(true);
+        setUploads(result.uploads);
+        setHasActiveUploads(result.hasActiveUploads);
+        setUsage(result.usage || null);
+        setLimitReached(result.limitReached || false);
+        
+        // Store workspace hash for future use
+        if (result.workspaceHash) {
+          localStorage.setItem("current_workspace_hash", result.workspaceHash);
+        }
+
+        if (result.limitReached) {
+          setCredentialError(result.error);
+        } else if (result.hasActiveUploads) {
+          setCredentialError("Você tem processamentos em andamento. Aguarde a conclusão para enviar novos arquivos.");
+        }
+      } else {
+        setCredentialsValidated(false);
+        setCredentialError(result.error || "Credenciais inválidas");
+        setUsage(null);
+        setLimitReached(false);
+      }
+    } catch (error) {
+      console.error("Error checking credentials:", error);
+      setCredentialError("Erro ao verificar credenciais");
+      setCredentialsValidated(false);
+    } finally {
+      setValidatingCredentials(false);
+    }
+  };
+
   const handleDownloadTemplate = async () => {
     try {
       const response = await fetch("/api/template.xlsx", {
         method: "POST",
       });
       
-      if (!response.ok) throw new Error("Failed to download template");
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || "Erro ao gerar template");
+      }
       
       const blob = await response.blob();
       const url = window.URL.createObjectURL(blob);
@@ -118,9 +185,9 @@ export default function AddChatsPage() {
       a.click();
       window.URL.revokeObjectURL(url);
       document.body.removeChild(a);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error downloading template:", error);
-      alert("Erro ao baixar template");
+      setCredentialError(error.message || "Erro ao baixar template. Tente novamente");
     }
   };
 
@@ -128,18 +195,41 @@ export default function AddChatsPage() {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    if (!credentials.server || !credentials.key || !credentials.accountId || !credentials.phoneId) {
-      alert("Por favor, preencha todas as credenciais primeiro");
+    if (!credentialsValidated) {
+      setCredentialError("Por favor, valide suas credenciais primeiro clicando em 'Checar credencial'");
+      e.target.value = "";
+      return;
+    }
+
+    if (limitReached) {
+      setCredentialError("Limite de 10.000 contatos atingido para este Account ID. Não é possível enviar novos arquivos.");
+      e.target.value = "";
       return;
     }
 
     if (hasActiveUploads) {
-      alert("Você já tem um processamento em andamento. Aguarde a conclusão antes de enviar novos arquivos.");
+      setCredentialError("Você já tem um processamento em andamento. Aguarde a conclusão antes de enviar novos arquivos.");
+      e.target.value = "";
+      return;
+    }
+
+    // Validate file type
+    if (!file.name.toLowerCase().endsWith('.xlsx')) {
+      setCredentialError("Por favor, envie apenas arquivos Excel (.xlsx)");
+      e.target.value = "";
+      return;
+    }
+
+    // Validate file size (max 10MB)
+    if (file.size > 10 * 1024 * 1024) {
+      setCredentialError("O arquivo é muito grande. Tamanho máximo: 10MB");
       e.target.value = "";
       return;
     }
 
     setUploading(true);
+    setCredentialError(null);
+    
     try {
       const hash = await workspaceHash(
         credentials.server,
@@ -160,13 +250,17 @@ export default function AddChatsPage() {
         body: formData,
       });
 
-      if (!response.ok) throw new Error("Upload failed");
-
       const result = await response.json();
+
+      if (!response.ok) {
+        // Show specific error message from API
+        throw new Error(result.error || "Erro ao processar o arquivo");
+      }
+
       window.location.href = `/tools/add-chats/${result.id}`;
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error uploading file:", error);
-      alert("Erro ao fazer upload do arquivo");
+      setCredentialError(error.message || "Erro ao fazer upload do arquivo. Verifique o formato da planilha");
     } finally {
       setUploading(false);
       if (e.target) e.target.value = "";
@@ -275,22 +369,94 @@ export default function AddChatsPage() {
               </Label>
             </div>
 
-            <div className="bg-muted p-4 rounded-lg">
+            <div className="flex items-center justify-between">
+              <Button
+                onClick={handleCheckCredentials}
+                disabled={validatingCredentials || !credentials.server || !credentials.key || !credentials.accountId || !credentials.phoneId}
+                className="flex items-center gap-2"
+              >
+                {validatingCredentials ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Verificando...
+                  </>
+                ) : (
+                  <>
+                    {credentialsValidated ? (
+                      <CheckCircle className="h-4 w-4" />
+                    ) : (
+                      <AlertCircle className="h-4 w-4" />
+                    )}
+                    Checar credencial
+                  </>
+                )}
+              </Button>
+
+              {credentialsValidated && !limitReached && (
+                <div className="flex items-center gap-2 text-sm text-green-600">
+                  <CheckCircle className="h-4 w-4" />
+                  Credenciais válidas
+                </div>
+              )}
+              
+              {limitReached && (
+                <div className="flex items-center gap-2 text-sm text-red-600">
+                  <XCircle className="h-4 w-4" />
+                  Limite atingido
+                </div>
+              )}
+            </div>
+
+            {credentialError && (
+              <Alert className={limitReached ? "border-red-500" : credentialsValidated && hasActiveUploads ? "border-yellow-500" : "border-red-500"}>
+                {limitReached ? <XCircle className="h-4 w-4 text-red-500" /> : <AlertCircle className="h-4 w-4" />}
+                <AlertDescription>
+                  {credentialError}
+                </AlertDescription>
+              </Alert>
+            )}
+
+            {usage && credentialsValidated && (
+              <div className="space-y-3 p-4 border rounded-lg">
+                <div className="flex justify-between items-center">
+                  <span className="text-sm font-medium">Uso do Account ID</span>
+                  <span className="text-sm text-muted-foreground">
+                    {usage.total.toLocaleString('pt-BR')} / {usage.limit.toLocaleString('pt-BR')}
+                  </span>
+                </div>
+                <Progress 
+                  value={usage.percentage} 
+                  className={`h-2 ${usage.percentage >= 90 ? 'bg-red-100' : usage.percentage >= 75 ? 'bg-yellow-100' : ''}`}
+                />
+                <div className="flex justify-between text-xs text-muted-foreground">
+                  <span>
+                    {usage.percentage >= 100 
+                      ? 'Limite atingido' 
+                      : `${usage.remaining.toLocaleString('pt-BR')} contatos restantes`}
+                  </span>
+                  <span>{usage.percentage.toFixed(1)}% usado</span>
+                </div>
+                {usage.percentage >= 90 && usage.percentage < 100 && (
+                  <Alert className="border-yellow-500">
+                    <AlertCircle className="h-4 w-4" />
+                    <AlertDescription className="text-xs">
+                      Atenção: Você está próximo do limite de 10.000 contatos
+                    </AlertDescription>
+                  </Alert>
+                )}
+              </div>
+            )}
+
+            <div className="bg-muted p-4 rounded-lg space-y-1">
               <p className="text-sm text-muted-foreground">
                 Processamento: <strong className="text-foreground">1 por minuto</strong> (~10 a cada 10 min)
+              </p>
+              <p className="text-xs text-muted-foreground">
+                Dados são automaticamente removidos após 45 dias • O uso do limite é permanente
               </p>
             </div>
           </CardContent>
         </Card>
-
-        {hasActiveUploads && (
-          <Alert>
-            <AlertCircle className="h-4 w-4" />
-            <AlertDescription>
-              Você tem processamentos em andamento. Aguarde a conclusão antes de enviar novos arquivos.
-            </AlertDescription>
-          </Alert>
-        )}
 
         <div className="flex gap-4">
           <Button 
@@ -305,7 +471,8 @@ export default function AddChatsPage() {
           <Button 
             asChild
             className="flex items-center gap-2"
-            disabled={uploading || hasActiveUploads}
+            disabled={uploading || hasActiveUploads || !credentialsValidated || limitReached}
+            title={!credentialsValidated ? "Valide suas credenciais primeiro" : limitReached ? "Limite de 10.000 contatos atingido" : hasActiveUploads ? "Aguarde conclusão do processamento atual" : "Fazer upload de arquivo XLSX"}
           >
             <label>
               <Upload className="h-4 w-4" />
@@ -315,19 +482,20 @@ export default function AddChatsPage() {
                 accept=".xlsx"
                 className="hidden"
                 onChange={handleFileUpload}
-                disabled={uploading || hasActiveUploads}
+                disabled={uploading || hasActiveUploads || !credentialsValidated}
               />
             </label>
           </Button>
         </div>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Jobs Recentes</CardTitle>
-            <CardDescription>Visualize o status dos seus jobs de importação</CardDescription>
-          </CardHeader>
-          <CardContent>
-            {loadingUploads ? (
+        {credentialsValidated && (
+          <Card>
+            <CardHeader>
+              <CardTitle>Jobs Recentes</CardTitle>
+              <CardDescription>Visualize o status dos seus jobs de importação</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {loadingUploads ? (
               <div className="flex items-center justify-center py-8">
                 <Loader2 className="h-6 w-6 animate-spin" />
               </div>
@@ -382,7 +550,8 @@ export default function AddChatsPage() {
               </p>
             )}
           </CardContent>
-        </Card>
+          </Card>
+        )}
       </div>
     </div>
   );

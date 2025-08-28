@@ -1,11 +1,12 @@
 "use client";
 
 import { useState, useEffect, use } from "react";
-import { ArrowLeft, Download, RefreshCw } from "lucide-react";
+import { ArrowLeft, Download, RefreshCw, AlertCircle } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { supabase } from "@/lib/supabase/client";
 import type { Upload, UploadItem } from "@/types/database";
 
@@ -18,6 +19,7 @@ export default function UploadDetailsPage({ params }: PageProps) {
   const [upload, setUpload] = useState<Upload | null>(null);
   const [items, setItems] = useState<UploadItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     fetchUploadData();
@@ -70,7 +72,7 @@ export default function UploadDetailsPage({ params }: PageProps) {
     try {
       const workspaceHash = localStorage.getItem('current_workspace_hash');
       if (!workspaceHash) {
-        console.error('No workspace hash found');
+        setError('Sessão expirada. Por favor, volte para a página inicial e valide suas credenciais novamente');
         return;
       }
 
@@ -93,8 +95,9 @@ export default function UploadDetailsPage({ params }: PageProps) {
 
       if (itemsError) throw itemsError;
       setItems(itemsData || []);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error fetching upload data:', error);
+      setError('Erro ao carregar dados do upload. Verifique sua conexão');
     } finally {
       setLoading(false);
     }
@@ -109,13 +112,17 @@ export default function UploadDetailsPage({ params }: PageProps) {
         },
       });
 
-      if (!response.ok) throw new Error('Failed to retry');
+      if (!response.ok) {
+        const result = await response.json();
+        throw new Error(result.error || 'Erro ao reprocessar');
+      }
       
       // Refresh data
       await fetchUploadData();
-    } catch (error) {
+      setError(null);
+    } catch (error: any) {
       console.error('Error retrying failed items:', error);
-      alert('Erro ao reprocessar itens falhos');
+      setError(error.message || 'Erro ao reprocessar itens falhos. Tente novamente');
     }
   };
 
@@ -127,7 +134,10 @@ export default function UploadDetailsPage({ params }: PageProps) {
         },
       });
 
-      if (!response.ok) throw new Error('Failed to download failures');
+      if (!response.ok) {
+        const result = await response.json();
+        throw new Error(result.error || 'Erro ao gerar relatório');
+      }
 
       const blob = await response.blob();
       const url = window.URL.createObjectURL(blob);
@@ -138,9 +148,9 @@ export default function UploadDetailsPage({ params }: PageProps) {
       a.click();
       window.URL.revokeObjectURL(url);
       document.body.removeChild(a);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error downloading failures:', error);
-      alert('Erro ao baixar relatório de falhas');
+      setError(error.message || 'Erro ao baixar relatório de falhas. Verifique se há itens com erro');
     }
   };
 
@@ -198,6 +208,13 @@ export default function UploadDetailsPage({ params }: PageProps) {
       </div>
 
       <h1 className="text-3xl font-bold mb-8">Detalhes do Upload</h1>
+
+      {error && (
+        <Alert className="mb-6 border-red-500">
+          <AlertCircle className="h-4 w-4" />
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      )}
 
       <div className="space-y-6">
         <Card>
@@ -293,6 +310,12 @@ export default function UploadDetailsPage({ params }: PageProps) {
             </div>
           </CardContent>
         </Card>
+        
+        <div className="mt-4 text-center">
+          <p className="text-xs text-muted-foreground">
+            Os dados deste processamento serão removidos automaticamente após 45 dias
+          </p>
+        </div>
       </div>
     </div>
   );

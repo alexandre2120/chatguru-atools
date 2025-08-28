@@ -11,7 +11,7 @@ export async function POST(request: NextRequest) {
 
     if (!file || !workspaceHash) {
       return NextResponse.json(
-        { error: 'Missing file or workspace_hash' },
+        { error: 'Arquivo ou identificação do workspace ausente' },
         { status: 400 }
       );
     }
@@ -22,19 +22,30 @@ export async function POST(request: NextRequest) {
     // Ensure workspace exists
     const { data: workspace, error: wsError } = await supabase
       .from('workspaces')
-      .upsert({
-        workspace_hash: workspaceHash,
-        created_at: new Date().toISOString(),
-      })
-      .select()
+      .select('*')
+      .eq('workspace_hash', workspaceHash)
       .single();
 
-    if (wsError) {
+    if (wsError || !workspace) {
       console.error('Workspace error:', wsError);
       return NextResponse.json(
-        { error: 'Failed to create workspace' },
-        { status: 500 }
+        { error: 'Workspace não encontrado. Valide suas credenciais primeiro' },
+        { status: 400 }
       );
+    }
+
+    // Check account usage limit
+    if (workspace.account_id) {
+      const { data: usageData } = await supabase
+        .rpc('get_account_usage', { p_account_id: workspace.account_id });
+      
+      const totalUsage = usageData || 0;
+      if (totalUsage >= 10000) {
+        return NextResponse.json(
+          { error: `Limite de 10.000 contatos atingido para este Account ID. Total usado: ${totalUsage.toLocaleString('pt-BR')}` },
+          { status: 403 }
+        );
+      }
     }
 
     // Read Excel file
@@ -45,7 +56,7 @@ export async function POST(request: NextRequest) {
     const worksheet = workbook.getWorksheet(1);
     if (!worksheet) {
       return NextResponse.json(
-        { error: 'No worksheet found in file' },
+        { error: 'Nenhuma planilha encontrada no arquivo. Verifique se o arquivo XLSX está correto' },
         { status: 400 }
       );
     }
@@ -65,7 +76,7 @@ export async function POST(request: NextRequest) {
 
     if (!hasRequiredColumns) {
       return NextResponse.json(
-        { error: 'Missing required columns: chat_number, name' },
+        { error: 'Colunas obrigatórias ausentes. A planilha deve ter: chat_number e name' },
         { status: 400 }
       );
     }
@@ -104,7 +115,7 @@ export async function POST(request: NextRequest) {
 
     if (items.length === 0) {
       return NextResponse.json(
-        { error: 'No valid rows found in file' },
+        { error: 'Nenhuma linha válida encontrada. Verifique se há dados na planilha além do cabeçalho' },
         { status: 400 }
       );
     }
@@ -127,7 +138,7 @@ export async function POST(request: NextRequest) {
     if (uploadError || !upload) {
       console.error('Upload error:', uploadError);
       return NextResponse.json(
-        { error: 'Failed to create upload record' },
+        { error: 'Erro ao criar registro de upload no banco de dados' },
         { status: 500 }
       );
     }
@@ -148,7 +159,7 @@ export async function POST(request: NextRequest) {
       await supabase.from('uploads').delete().eq('id', upload.id);
       
       return NextResponse.json(
-        { error: 'Failed to create upload items' },
+        { error: 'Erro ao processar itens da planilha. Tente novamente' },
         { status: 500 }
       );
     }
@@ -169,7 +180,7 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error('Upload error:', error);
     return NextResponse.json(
-      { error: 'Failed to process upload' },
+      { error: 'Erro ao processar o upload. Verifique o formato da planilha' },
       { status: 500 }
     );
   }

@@ -11,7 +11,7 @@ export async function POST(
 
     if (!workspaceHash) {
       return NextResponse.json(
-        { error: 'Missing workspace hash' },
+        { error: 'Identificação do workspace ausente' },
         { status: 400 }
       );
     }
@@ -35,7 +35,7 @@ export async function POST(
     if (error) {
       console.error('Error resetting failed items:', error);
       return NextResponse.json(
-        { error: 'Failed to reset items' },
+        { error: 'Erro ao reprocessar itens. Tente novamente' },
         { status: 500 }
       );
     }
@@ -66,7 +66,7 @@ export async function POST(
   } catch (error) {
     console.error('Error in retry-failed:', error);
     return NextResponse.json(
-      { error: 'Internal server error' },
+      { error: 'Erro interno do servidor' },
       { status: 500 }
     );
   }
