@@ -47,10 +47,10 @@ async function handleTickRequest(request: NextRequest) {
         continue;
       }
 
-      // Get active uploads for this workspace (skip canceled)
+      // Get active uploads for this workspace (skip canceled) with credentials
       const { data: uploads } = await supabase
         .from('uploads')
-        .select('id, status')
+        .select('id, status, credentials')
         .eq('workspace_hash', workspace.workspace_hash)
         .in('status', ['queued', 'running'])
         .limit(1);
@@ -70,7 +70,7 @@ async function handleTickRequest(request: NextRequest) {
         .single();
 
       if (queuedItem) {
-        const result = await processAddChat(queuedItem, workspace, supabase);
+        const result = await processAddChat(queuedItem, workspace, uploads[0], supabase);
         results.push(result);
         continue;
       }
@@ -86,7 +86,7 @@ async function handleTickRequest(request: NextRequest) {
         .single();
 
       if (waitingItem && waitingItem.chat_add_id) {
-        const result = await processCheckStatus(waitingItem, workspace, supabase);
+        const result = await processCheckStatus(waitingItem, workspace, uploads[0], supabase);
         results.push(result);
       }
 
@@ -107,7 +107,7 @@ async function handleTickRequest(request: NextRequest) {
   }
 }
 
-async function processAddChat(item: UploadItem, workspace: any, supabase: any) {
+async function processAddChat(item: UploadItem, workspace: any, upload: any, supabase: any) {
   const workspaceHash = workspace.workspace_hash;
   try {
     // Update workspace last_outbound_at
@@ -126,13 +126,17 @@ async function processAddChat(item: UploadItem, workspace: any, supabase: any) {
       })
       .eq('id', item.id);
 
-    // Get credentials from workspace
-    const credentials = {
-      server: workspace.server || 's10', // Fallback for legacy data
-      key: 'temp_key', // These still need to come from secure source
-      accountId: workspace.account_id || 'temp_account',
-      phoneId: 'temp_phone',
-    };
+    // Get credentials from upload (passed from frontend)
+    const credentials = upload.credentials || {};
+    
+    // Validate credentials
+    if (!credentials.key || !credentials.phoneId) {
+      throw new Error('Credenciais ausentes no upload');
+    }
+    
+    // Use server and account_id from workspace (already validated)
+    credentials.server = workspace.server || 's10';
+    credentials.accountId = workspace.account_id;
     
     if (MOCK_CHATGURU) {
       // Mock response
@@ -233,7 +237,7 @@ async function processAddChat(item: UploadItem, workspace: any, supabase: any) {
   }
 }
 
-async function processCheckStatus(item: UploadItem, workspace: any, supabase: any) {
+async function processCheckStatus(item: UploadItem, workspace: any, upload: any, supabase: any) {
   const workspaceHash = workspace.workspace_hash;
   try {
     // Update workspace last_outbound_at
@@ -255,13 +259,17 @@ async function processCheckStatus(item: UploadItem, workspace: any, supabase: an
       return { success: true, itemId: item.id, action: 'status', mock: true };
     }
 
-    // Real ChatGuru API call
-    const credentials = {
-      server: workspace.server || 's10', // Fallback for legacy data
-      key: 'temp_key', // These still need to come from secure source
-      accountId: workspace.account_id || 'temp_account',
-      phoneId: 'temp_phone',
-    };
+    // Get credentials from upload (passed from frontend)
+    const credentials = upload.credentials || {};
+    
+    // Validate credentials
+    if (!credentials.key || !credentials.phoneId) {
+      throw new Error('Credenciais ausentes no upload');
+    }
+    
+    // Use server and account_id from workspace (already validated)
+    credentials.server = workspace.server || 's10';
+    credentials.accountId = workspace.account_id;
     const server = credentials.server;
     const baseUrl = `https://${server}.chatguru.app/api/v1`;
     

@@ -8,10 +8,12 @@ export async function POST(request: NextRequest) {
     const formData = await request.formData();
     const file = formData.get('file') as File;
     const workspaceHash = formData.get('workspace_hash') as string;
+    const key = formData.get('key') as string;
+    const phoneId = formData.get('phone_id') as string;
 
-    if (!file || !workspaceHash) {
+    if (!file || !workspaceHash || !key || !phoneId) {
       return NextResponse.json(
-        { error: 'Arquivo ou identificação do workspace ausente' },
+        { error: 'Arquivo, credenciais ou identificação do workspace ausente' },
         { status: 400 }
       );
     }
@@ -120,7 +122,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Create upload record
+    // Create upload record with credentials
     const { data: upload, error: uploadError } = await supabase
       .from('uploads')
       .insert({
@@ -131,6 +133,7 @@ export async function POST(request: NextRequest) {
         succeeded_rows: 0,
         failed_rows: 0,
         status: 'queued',
+        credentials: { key, phoneId }, // Store credentials securely
       })
       .select()
       .single();

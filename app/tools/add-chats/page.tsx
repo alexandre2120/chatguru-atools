@@ -244,6 +244,8 @@ export default function AddChatsPage() {
       const formData = new FormData();
       formData.append("file", file);
       formData.append("workspace_hash", hash);
+      formData.append("key", storedCreds.key);
+      formData.append("phone_id", storedCreds.phoneId);
 
       const response = await fetch("/api/uploads", {
         method: "POST",
