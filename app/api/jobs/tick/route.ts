@@ -59,23 +59,10 @@ async function handleTickRequest(request: NextRequest) {
 
       const uploadId = uploads[0].id;
 
-      // Try to process one queued item
-      const { data: queuedItem } = await supabase
-        .from('upload_items')
-        .select('*')
-        .eq('upload_id', uploadId)
-        .eq('state', 'queued')
-        .order('row_index', { ascending: true })
-        .limit(1)
-        .single();
-
-      if (queuedItem) {
-        const result = await processAddChat(queuedItem, workspace, uploads[0], supabase);
-        results.push(result);
-        continue;
-      }
-
-      // If no queued items, check status of waiting items
+      // Process both: add one new item AND check one waiting item
+      // This ensures continuous progress visualization
+      
+      // First, check status of a waiting item (if any)
       const { data: waitingItem } = await supabase
         .from('upload_items')
         .select('*')
@@ -86,8 +73,39 @@ async function handleTickRequest(request: NextRequest) {
         .single();
 
       if (waitingItem && waitingItem.chat_add_id) {
-        const result = await processCheckStatus(waitingItem, workspace, uploads[0], supabase);
-        results.push(result);
+        const checkResult = await processCheckStatus(waitingItem, workspace, uploads[0], supabase);
+        results.push(checkResult);
+        
+        // If we successfully checked an item, now try to add a new one
+        // This creates a continuous flow: check previous + add new
+        const { data: queuedItem } = await supabase
+          .from('upload_items')
+          .select('*')
+          .eq('upload_id', uploadId)
+          .eq('state', 'queued')
+          .order('row_index', { ascending: true })
+          .limit(1)
+          .single();
+
+        if (queuedItem) {
+          const addResult = await processAddChat(queuedItem, workspace, uploads[0], supabase);
+          results.push(addResult);
+        }
+      } else {
+        // No waiting items, just add a new one
+        const { data: queuedItem } = await supabase
+          .from('upload_items')
+          .select('*')
+          .eq('upload_id', uploadId)
+          .eq('state', 'queued')
+          .order('row_index', { ascending: true })
+          .limit(1)
+          .single();
+
+        if (queuedItem) {
+          const result = await processAddChat(queuedItem, workspace, uploads[0], supabase);
+          results.push(result);
+        }
       }
 
       // Update upload stats
@@ -195,6 +213,7 @@ async function processAddChat(item: UploadItem, workspace: any, upload: any, sup
         .update({
           state: 'waiting_status',
           chat_add_id: result.chat_add_id,
+          last_error_message: result.description || 'Chat cadastrado para inclusão com sucesso!',
           updated_at: new Date().toISOString()
         })
         .eq('id', item.id);
@@ -297,13 +316,21 @@ async function processCheckStatus(item: UploadItem, workspace: any, upload: any,
         .from('upload_items')
         .update({
           state: 'done',
+          last_error_message: result.description || 'Chat adicionado com sucesso!',
           updated_at: new Date().toISOString()
         })
         .eq('id', item.id);
 
       return { success: true, itemId: item.id, action: 'status' };
     } else if (response.ok && result.chat_add_status === 'pending') {
-      // Keep as waiting_status
+      // Keep as waiting_status but update description
+      await supabase
+        .from('upload_items')
+        .update({
+          last_error_message: result.description || 'Processando...',
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', item.id);
       return { success: true, itemId: item.id, action: 'status', pending: true };
     } else {
       throw new Error(result.description || 'Status check failed');
