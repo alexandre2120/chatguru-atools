@@ -488,6 +488,16 @@ export default function AddChatsPage() {
               />
             </label>
           </Button>
+
+          <Button
+            asChild
+            variant="secondary"
+            className="flex items-center gap-2"
+          >
+            <a href="https://links.chatguru.com.br/atools" target="_blank" rel="noopener noreferrer">
+              Tutorial
+            </a>
+          </Button>
         </div>
 
         {credentialsValidated && (
