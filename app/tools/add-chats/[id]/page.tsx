@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, use } from "react";
-import { ArrowLeft, Download, RefreshCw, AlertCircle } from "lucide-react";
+import { ArrowLeft, Download, RefreshCw, AlertCircle, XCircle } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -24,18 +24,26 @@ export default function UploadDetailsPage({ params }: PageProps) {
   useEffect(() => {
     fetchUploadData();
     
+    // Poll for updates every 2 seconds while processing
+    const interval = setInterval(() => {
+      if (upload && (upload.status === 'running' || upload.status === 'queued')) {
+        fetchUploadData();
+      }
+    }, 2000);
+
     // Subscribe to realtime updates
     const channel = supabase
       .channel(`upload-${id}`)
       .on(
         'postgres_changes',
         {
-          event: '*',
+          event: 'UPDATE',
           schema: 'public',
           table: 'uploads',
           filter: `id=eq.${id}`,
         },
         (payload) => {
+          console.log('Upload update:', payload);
           if (payload.new) {
             setUpload(payload.new as Upload);
           }
@@ -50,6 +58,7 @@ export default function UploadDetailsPage({ params }: PageProps) {
           filter: `upload_id=eq.${id}`,
         },
         (payload) => {
+          console.log('Item update:', payload);
           if (payload.eventType === 'INSERT') {
             setItems(prev => [...prev, payload.new as UploadItem]);
           } else if (payload.eventType === 'UPDATE') {
@@ -61,40 +70,40 @@ export default function UploadDetailsPage({ params }: PageProps) {
           }
         }
       )
-      .subscribe();
+      .subscribe((status) => {
+        console.log('Subscription status:', status);
+      });
 
     return () => {
+      clearInterval(interval);
       supabase.removeChannel(channel);
     };
-  }, [id]);
+  }, [id, upload?.status]);
 
   const fetchUploadData = async () => {
     try {
       const workspaceHash = localStorage.getItem('current_workspace_hash');
       if (!workspaceHash) {
         setError('Sessão expirada. Por favor, volte para a página inicial e valide suas credenciais novamente');
+        setLoading(false);
         return;
       }
 
-      // Fetch upload
-      const { data: uploadData, error: uploadError } = await supabase
-        .from('uploads')
-        .select('*')
-        .eq('id', id)
-        .single();
+      // Fetch upload via API with proper workspace context
+      const uploadResponse = await fetch(`/api/uploads/${id}`, {
+        headers: {
+          'x-workspace-hash': workspaceHash,
+        },
+      });
 
-      if (uploadError) throw uploadError;
-      setUpload(uploadData);
+      if (!uploadResponse.ok) {
+        throw new Error('Erro ao buscar dados do upload');
+      }
 
-      // Fetch items
-      const { data: itemsData, error: itemsError } = await supabase
-        .from('upload_items')
-        .select('*')
-        .eq('upload_id', id)
-        .order('row_index', { ascending: true });
-
-      if (itemsError) throw itemsError;
-      setItems(itemsData || []);
+      const uploadData = await uploadResponse.json();
+      setUpload(uploadData.upload);
+      setItems(uploadData.items || []);
+      
     } catch (error: any) {
       console.error('Error fetching upload data:', error);
       setError('Erro ao carregar dados do upload. Verifique sua conexão');
@@ -151,6 +160,33 @@ export default function UploadDetailsPage({ params }: PageProps) {
     } catch (error: any) {
       console.error('Error downloading failures:', error);
       setError(error.message || 'Erro ao baixar relatório de falhas. Verifique se há itens com erro');
+    }
+  };
+
+  const handleCancelUpload = async () => {
+    if (!confirm('Tem certeza que deseja cancelar este processamento? Os itens já processados permanecerão salvos.')) {
+      return;
+    }
+
+    try {
+      const response = await fetch(`/api/uploads/${id}/cancel`, {
+        method: 'POST',
+        headers: {
+          'x-workspace-hash': localStorage.getItem('current_workspace_hash') || '',
+        },
+      });
+
+      if (!response.ok) {
+        const result = await response.json();
+        throw new Error(result.error || 'Erro ao cancelar processamento');
+      }
+
+      // Refresh data
+      await fetchUploadData();
+      setError(null);
+    } catch (error: any) {
+      console.error('Error canceling upload:', error);
+      setError(error.message || 'Erro ao cancelar processamento. Tente novamente');
     }
   };
 
@@ -264,6 +300,16 @@ export default function UploadDetailsPage({ params }: PageProps) {
                     Baixar Falhas
                   </Button>
                 </>
+              )}
+              {(upload.status === 'running' || upload.status === 'queued') && (
+                <Button 
+                  onClick={handleCancelUpload}
+                  variant="destructive"
+                  className="gap-2 ml-auto"
+                >
+                  <XCircle className="h-4 w-4" />
+                  Parar Processo
+                </Button>
               )}
             </div>
           </CardContent>

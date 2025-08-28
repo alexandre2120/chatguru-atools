@@ -26,7 +26,7 @@ async function handleTickRequest(request: NextRequest) {
     // Get all workspaces with active uploads
     const { data: workspaces } = await supabase
       .from('workspaces')
-      .select('workspace_hash, last_outbound_at')
+      .select('workspace_hash, last_outbound_at, server, account_id')
       .order('last_outbound_at', { ascending: true, nullsFirst: true });
 
     if (!workspaces || workspaces.length === 0) {
@@ -47,10 +47,10 @@ async function handleTickRequest(request: NextRequest) {
         continue;
       }
 
-      // Get active uploads for this workspace
+      // Get active uploads for this workspace (skip canceled)
       const { data: uploads } = await supabase
         .from('uploads')
-        .select('id')
+        .select('id, status')
         .eq('workspace_hash', workspace.workspace_hash)
         .in('status', ['queued', 'running'])
         .limit(1);
@@ -70,7 +70,7 @@ async function handleTickRequest(request: NextRequest) {
         .single();
 
       if (queuedItem) {
-        const result = await processAddChat(queuedItem, workspace.workspace_hash, supabase);
+        const result = await processAddChat(queuedItem, workspace, supabase);
         results.push(result);
         continue;
       }
@@ -86,7 +86,7 @@ async function handleTickRequest(request: NextRequest) {
         .single();
 
       if (waitingItem && waitingItem.chat_add_id) {
-        const result = await processCheckStatus(waitingItem, workspace.workspace_hash, supabase);
+        const result = await processCheckStatus(waitingItem, workspace, supabase);
         results.push(result);
       }
 
@@ -107,7 +107,8 @@ async function handleTickRequest(request: NextRequest) {
   }
 }
 
-async function processAddChat(item: UploadItem, workspaceHash: string, supabase: any) {
+async function processAddChat(item: UploadItem, workspace: any, supabase: any) {
+  const workspaceHash = workspace.workspace_hash;
   try {
     // Update workspace last_outbound_at
     await supabase
@@ -125,9 +126,13 @@ async function processAddChat(item: UploadItem, workspaceHash: string, supabase:
       })
       .eq('id', item.id);
 
-    // Get credentials from somewhere (in real app, this would be from a secure source)
-    // For now, we'll mock this
-    const credentials = await getCredentials(workspaceHash);
+    // Get credentials from workspace
+    const credentials = {
+      server: workspace.server || 's10', // Fallback for legacy data
+      key: 'temp_key', // These still need to come from secure source
+      accountId: workspace.account_id || 'temp_account',
+      phoneId: 'temp_phone',
+    };
     
     if (MOCK_CHATGURU) {
       // Mock response
@@ -228,7 +233,8 @@ async function processAddChat(item: UploadItem, workspaceHash: string, supabase:
   }
 }
 
-async function processCheckStatus(item: UploadItem, workspaceHash: string, supabase: any) {
+async function processCheckStatus(item: UploadItem, workspace: any, supabase: any) {
+  const workspaceHash = workspace.workspace_hash;
   try {
     // Update workspace last_outbound_at
     await supabase
@@ -250,7 +256,12 @@ async function processCheckStatus(item: UploadItem, workspaceHash: string, supab
     }
 
     // Real ChatGuru API call
-    const credentials = await getCredentials(workspaceHash);
+    const credentials = {
+      server: workspace.server || 's10', // Fallback for legacy data
+      key: 'temp_key', // These still need to come from secure source
+      accountId: workspace.account_id || 'temp_account',
+      phoneId: 'temp_phone',
+    };
     const server = credentials.server;
     const baseUrl = `https://${server}.chatguru.app/api/v1`;
     
@@ -353,6 +364,11 @@ async function updateUploadStats(uploadId: string, supabase: any) {
   const processed = counts.succeeded + counts.failed;
   const isCompleted = processed === counts.total;
   
+  // Check if upload was canceled
+  if (upload.status === 'canceled') {
+    return; // Skip updating stats for canceled uploads
+  }
+  
   // Track new successful additions
   const newSuccessful = counts.succeeded - previousSucceeded;
   if (newSuccessful > 0 && upload.workspaces?.account_id) {
@@ -380,13 +396,3 @@ async function updateUploadStats(uploadId: string, supabase: any) {
     .eq('id', uploadId);
 }
 
-async function getCredentials(_workspaceHash: string) {
-  // In a real app, you would securely retrieve credentials
-  // For now, returning mock credentials
-  return {
-    server: 's10',
-    key: 'mock_key',
-    accountId: 'mock_account',
-    phoneId: 'mock_phone',
-  };
-}

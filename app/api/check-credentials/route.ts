@@ -27,12 +27,13 @@ export async function POST(request: NextRequest) {
     // Now check for active uploads and usage limits in the database
     const supabase = createServerClient(hash);
 
-    // First, ensure workspace exists with account_id
+    // First, ensure workspace exists with account_id and server
     const { data: workspace, error: wsError } = await supabase
       .from('workspaces')
       .upsert({
         workspace_hash: hash,
         account_id: accountId,
+        server: server,
         created_at: new Date().toISOString(),
       })
       .select()
