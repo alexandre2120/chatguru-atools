@@ -412,6 +412,22 @@ async function updateUploadStats(uploadId: string, supabase: any) {
   
   const isCompleted = allItemsProcessed && !hasItemsToProcess;
   
+  // DEBUG: Log decisão final
+  console.log(`[DEBUG] Final decision for upload ${uploadId}:`);
+  console.log(`  - allItemsProcessed: ${allItemsProcessed} (${processed} == ${counts.total})`);
+  console.log(`  - hasItemsToProcess: ${hasItemsToProcess} (queued: ${counts.queued}, processing: ${counts.processing})`);
+  console.log(`  - isCompleted: ${isCompleted}`);
+  console.log(`  - Current status: ${upload.status}`);
+  console.log(`  - Will set status to: ${isCompleted ? 'completed' : 'running'}`);
+  
+  // SAFETY CHECK: Never mark as completed if there are queued items
+  const forceRunning = counts.queued > 0;
+  const finalStatus = (isCompleted && !forceRunning) ? 'completed' : 'running';
+  
+  if (forceRunning && isCompleted) {
+    console.log(`[SAFETY] Forcing status to 'running' because ${counts.queued} items are queued`);
+  }
+  
   // Check if upload was canceled
   if (upload.status === 'canceled') {
     return; // Skip updating stats for canceled uploads
@@ -448,9 +464,9 @@ async function updateUploadStats(uploadId: string, supabase: any) {
       processed_rows: processed,
       succeeded_rows: counts.succeeded,
       failed_rows: counts.failed,
-      status: isCompleted ? 'completed' : 'running',
+      status: finalStatus,
       started_at: counts.processing > 0 ? new Date().toISOString() : null,
-      completed_at: isCompleted ? new Date().toISOString() : null,
+      completed_at: finalStatus === 'completed' ? new Date().toISOString() : null,
     })
     .eq('id', uploadId);
 }
