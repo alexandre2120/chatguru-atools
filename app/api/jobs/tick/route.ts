@@ -397,7 +397,15 @@ async function updateUploadStats(uploadId: string, supabase: any) {
   });
 
   const processed = counts.succeeded + counts.failed;
-  const isCompleted = processed === counts.total;
+  
+  // FIX: Upload só deve ser marcado como completed quando:
+  // 1. Todos os itens foram processados (succeeded + failed = total)
+  // 2. E não há itens em estado de processamento (adding, waiting_status)
+  // 3. E não há itens ainda na fila (queued)
+  const hasItemsToProcess = counts.queued > 0 || counts.processing > 0;
+  const allItemsProcessed = processed === counts.total;
+  
+  const isCompleted = allItemsProcessed && !hasItemsToProcess;
   
   // Check if upload was canceled
   if (upload.status === 'canceled') {
@@ -407,15 +415,26 @@ async function updateUploadStats(uploadId: string, supabase: any) {
   // Track new successful additions
   const newSuccessful = counts.succeeded - previousSucceeded;
   if (newSuccessful > 0 && upload.workspaces?.account_id) {
-    // Record usage for this account
-    await supabase
-      .from('usage_tracking')
-      .insert({
-        account_id: upload.workspaces.account_id,
+    // FIX: Adicionar try/catch para evitar que erro no usage_tracking trave o upload
+    try {
+      await supabase
+        .from('usage_tracking')
+        .insert({
+          account_id: upload.workspaces.account_id,
+          workspace_hash: upload.workspace_hash,
+          upload_id: uploadId,
+          chats_added: newSuccessful,
+        });
+    } catch (usageError: any) {
+      // Log o erro mas não interrompe o processamento
+      await supabase.from('run_logs').insert({
         workspace_hash: upload.workspace_hash,
         upload_id: uploadId,
-        chats_added: newSuccessful,
+        phase: 'tick',
+        level: 'warn',
+        message: `Failed to track usage: ${usageError.message}`,
       });
+    }
   }
 
   await supabase
