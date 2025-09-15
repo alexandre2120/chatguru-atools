@@ -398,6 +398,11 @@ async function updateUploadStats(uploadId: string, supabase: any) {
 
   const processed = counts.succeeded + counts.failed;
   
+  // DEBUG: Log para verificar se novo código está ativo
+  console.log(`[DEBUG] Upload ${uploadId}: processed=${processed}, total=${counts.total}, queued=${counts.queued}, processing=${counts.processing}`);
+  console.log(`[DEBUG] Logic check: allItemsProcessed=${processed === counts.total}, hasItemsToProcess=${counts.queued > 0 || counts.processing > 0}`);
+  
+  
   // FIX: Upload só deve ser marcado como completed quando:
   // 1. Todos os itens foram processados (succeeded + failed = total)
   // 2. E não há itens em estado de processamento (adding, waiting_status)
