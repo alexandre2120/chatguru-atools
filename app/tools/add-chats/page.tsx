@@ -202,7 +202,7 @@ export default function AddChatsPage() {
     }
 
     if (limitReached) {
-      setCredentialError("Limite de 10.000 contatos atingido para este Account ID. Não é possível enviar novos arquivos.");
+      setCredentialError("Limite de 50.000 contatos atingido para este Account ID. Não é possível enviar novos arquivos.");
       e.target.value = "";
       return;
     }
@@ -442,7 +442,7 @@ export default function AddChatsPage() {
                   <Alert className="border-yellow-500">
                     <AlertCircle className="h-4 w-4" />
                     <AlertDescription className="text-xs">
-                      Atenção: Você está próximo do limite de 10.000 contatos
+                      Atenção: Você está próximo do limite de 50.000 contatos
                     </AlertDescription>
                   </Alert>
                 )}
@@ -474,7 +474,7 @@ export default function AddChatsPage() {
             asChild
             className="flex items-center gap-2"
             disabled={uploading || hasActiveUploads || !credentialsValidated || limitReached}
-            title={!credentialsValidated ? "Valide suas credenciais primeiro" : limitReached ? "Limite de 10.000 contatos atingido" : hasActiveUploads ? "Aguarde conclusão do processamento atual" : "Fazer upload de arquivo XLSX"}
+            title={!credentialsValidated ? "Valide suas credenciais primeiro" : limitReached ? "Limite de 50.000 contatos atingido" : hasActiveUploads ? "Aguarde conclusão do processamento atual" : "Fazer upload de arquivo XLSX"}
           >
             <label>
               <Upload className="h-4 w-4" />

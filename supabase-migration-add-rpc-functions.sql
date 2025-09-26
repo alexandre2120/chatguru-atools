@@ -57,6 +57,6 @@ CREATE INDEX IF NOT EXISTS idx_uploads_status ON uploads(status);
 -- 5. Comentários para documentação
 COMMENT ON FUNCTION get_account_usage(text) IS 'Conta o número total de chats adicionados com sucesso para um account_id específico';
 COMMENT ON TABLE usage_tracking IS 'Rastreamento detalhado de uso por account_id para controle de limites';
-COMMENT ON COLUMN workspaces.account_id IS 'Account ID do ChatGuru para controle de limite de 10k contatos';
+COMMENT ON COLUMN workspaces.account_id IS 'Account ID do ChatGuru para controle de limite de 50k contatos';
 COMMENT ON COLUMN workspaces.server IS 'Servidor ChatGuru (s10, s18, etc.) para API calls';
 COMMENT ON COLUMN uploads.credentials IS 'Credenciais criptografadas (key, phoneId) para processamento via cron';

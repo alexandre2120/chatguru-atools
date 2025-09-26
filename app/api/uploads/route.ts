@@ -42,9 +42,9 @@ export async function POST(request: NextRequest) {
         .rpc('get_account_usage', { p_account_id: workspace.account_id });
       
       const totalUsage = usageData || 0;
-      if (totalUsage >= 10000) {
+      if (totalUsage >= 50000) {
         return NextResponse.json(
-          { error: `Limite de 10.000 contatos atingido para este Account ID. Total usado: ${totalUsage.toLocaleString('pt-BR')}` },
+          { error: `Limite de 50.000 contatos atingido para este Account ID. Total usado: ${totalUsage.toLocaleString('pt-BR')}` },
           { status: 403 }
         );
       }

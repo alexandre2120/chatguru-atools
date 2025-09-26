@@ -1,5 +1,5 @@
 -- Migration to add usage tracking per account_id
--- This tracks the total number of chats added per account to enforce 10k limit
+-- This tracks the total number of chats added per account to enforce 50k limit
 -- Note: Upload data is deleted after 45 days, but usage tracking is permanent
 
 -- Add account_id column to workspaces table to track usage
@@ -42,5 +42,5 @@ END;
 $$ LANGUAGE plpgsql;
 
 -- Add comment explaining the limit
-COMMENT ON COLUMN workspaces.total_chats_added IS 'Total de chats adicionados por este account_id. Limite máximo: 10.000';
-COMMENT ON TABLE usage_tracking IS 'Rastreamento detalhado de uso por account_id para aplicar limite de 10.000 chats';
+COMMENT ON COLUMN workspaces.total_chats_added IS 'Total de chats adicionados por este account_id. Limite máximo: 50.000';
+COMMENT ON TABLE usage_tracking IS 'Rastreamento detalhado de uso por account_id para aplicar limite de 50.000 chats';

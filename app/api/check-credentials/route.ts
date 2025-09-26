@@ -48,7 +48,7 @@ export async function POST(request: NextRequest) {
       .rpc('get_account_usage', { p_account_id: accountId });
 
     const totalUsage = usageData || 0;
-    const usageLimit = 10000;
+    const usageLimit = 50000;
     const remainingQuota = Math.max(0, usageLimit - totalUsage);
     const isLimitReached = totalUsage >= usageLimit;
 
@@ -73,7 +73,7 @@ export async function POST(request: NextRequest) {
     if (isLimitReached) {
       return NextResponse.json({
         valid: true, // Credentials are valid, but limit reached
-        error: `Limite de 10.000 contatos atingido para este Account ID. Total usado: ${totalUsage.toLocaleString('pt-BR')}`,
+        error: `Limite de 50.000 contatos atingido para este Account ID. Total usado: ${totalUsage.toLocaleString('pt-BR')}`,
         hasActiveUploads,
         uploads: uploads || [],
         workspaceHash: hash,
