@@ -35,8 +35,8 @@ Build a very simple integration tool to batch-register chats in ChatGuru using i
    - Preserve numbers as strings (no scientific notation / no trimming).
 
 3. **Fixed Cadence & Rate Limit**
-   - Global rule: **1 request per minute per workspace** (hard cap).
-   - The tool aims for ~**10 adds per 10 minutes** (no user configuration).
+   - Global rule: **1 request per 10 seconds per workspace** (hard cap).
+   - The tool aims for ~**60 adds per 10 minutes** (no user configuration).
    - Status checks are **throttled** to respect the same cap; implementation **prioritizes adds** and schedules status checks with some delay (a few minutes of lag is acceptable).
 
 4. **Per-row Flow**
@@ -83,7 +83,7 @@ Implement the following routes (stubs in `API_Routes_Spec.md`):
   Stream an XLSX of failed rows (original columns + `error_code`, `error_message`, `chat_add_id`).
 - `POST /api/jobs/tick`  **(Vercel Cron every minute)**  
   For each `workspace_hash` with active uploads:
-  1) Enforce **1 request/min per workspace** using a lightweight lock (e.g., `workspaces.last_outbound_at` or advisory lock).  
+  1) Enforce **1 request per 10 seconds per workspace** using a lightweight lock (e.g., `workspaces.last_outbound_at` or advisory lock).
   2) Priority: pick one `upload_items` in `queued` → perform **`chat_add`**.  
      - If `text` is null/empty, send `text=" "` (single space).  
      - On success: save `chat_add_id`, set `state='waiting_status'`.  
@@ -122,7 +122,7 @@ Surface API `code` and `description` in the UI per item.
   - Each row shows: `row_index`, `chat_number`, `name`, current state, last message/code.
   - **Retry failed** button.
 
-Copy in PT-BR (concise). Show helper note: “Processamento: **1 por minuto** (~10 a cada 10 min).”
+Copy in PT-BR (concise). Show helper note: "Processamento: **1 a cada 10 segundos** (~60 a cada 10 min)."
 
 ---
 

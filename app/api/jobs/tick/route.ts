@@ -36,14 +36,14 @@ async function handleTickRequest(request: NextRequest) {
     const results = [];
 
     for (const workspace of workspaces) {
-      // Check rate limit: 1 request per minute per workspace
+      // Check rate limit: 1 request per 10 seconds per workspace (6 per minute)
       const now = new Date();
       const lastRequest = workspace.last_outbound_at 
         ? new Date(workspace.last_outbound_at) 
         : null;
 
-      if (lastRequest && (now.getTime() - lastRequest.getTime()) < 60000) {
-        console.log(`Skipping workspace ${workspace.workspace_hash} - rate limit`);
+      if (lastRequest && (now.getTime() - lastRequest.getTime()) < 10000) {
+        console.log(`Skipping workspace ${workspace.workspace_hash} - rate limit (10s)`);
         continue;
       }
 
@@ -59,52 +59,83 @@ async function handleTickRequest(request: NextRequest) {
 
       const uploadId = uploads[0].id;
 
-      // Process both: add one new item AND check one waiting item
-      // This ensures continuous progress visualization
+      // Process multiple items per minute to achieve 10-second rate (6 items per minute)
+      // Since cron runs every minute, we need to process up to 6 items per workspace
+      // Note: now and lastRequest are already defined above for rate limiting
       
-      // First, check status of a waiting item (if any)
-      const { data: waitingItem } = await supabase
-        .from('upload_items')
-        .select('*')
-        .eq('upload_id', uploadId)
-        .eq('state', 'waiting_status')
-        .order('updated_at', { ascending: true })
-        .limit(1)
-        .single();
-
-      if (waitingItem && waitingItem.chat_add_id) {
-        const checkResult = await processCheckStatus(waitingItem, workspace, uploads[0], supabase);
-        results.push(checkResult);
+      // Calculate how many items we can process based on time elapsed
+      const timeSinceLastRequest = lastRequest ? (now.getTime() - lastRequest.getTime()) : 60000;
+      const itemsToProcess = Math.min(6, Math.floor(timeSinceLastRequest / 10000)); // 1 item per 10 seconds
+      
+      console.log(`Processing up to ${itemsToProcess} items for workspace ${workspace.workspace_hash}`);
+      
+      let itemsProcessed = 0;
+      
+      // Process items until we reach the limit or run out of items
+      while (itemsProcessed < itemsToProcess) {
+        let processed = false;
         
-        // If we successfully checked an item, now try to add a new one
-        // This creates a continuous flow: check previous + add new
-        const { data: queuedItem } = await supabase
+        // First priority: check status of waiting items
+        const { data: waitingItem } = await supabase
           .from('upload_items')
           .select('*')
           .eq('upload_id', uploadId)
-          .eq('state', 'queued')
-          .order('row_index', { ascending: true })
+          .eq('state', 'waiting_status')
+          .order('updated_at', { ascending: true })
           .limit(1)
           .single();
 
-        if (queuedItem) {
-          const addResult = await processAddChat(queuedItem, workspace, uploads[0], supabase);
-          results.push(addResult);
+        if (waitingItem && waitingItem.chat_add_id) {
+          const checkResult = await processCheckStatus(waitingItem, workspace, uploads[0], supabase);
+          results.push(checkResult);
+          itemsProcessed++;
+          processed = true;
+          
+          // Update last_outbound_at after each request
+          await supabase
+            .from('workspaces')
+            .update({ last_outbound_at: new Date().toISOString() })
+            .eq('workspace_hash', workspace.workspace_hash);
+            
+          // Add small delay to respect 10-second spacing
+          if (itemsProcessed < itemsToProcess) {
+            await new Promise(resolve => setTimeout(resolve, 100)); // Small delay
+          }
         }
-      } else {
-        // No waiting items, just add a new one
-        const { data: queuedItem } = await supabase
-          .from('upload_items')
-          .select('*')
-          .eq('upload_id', uploadId)
-          .eq('state', 'queued')
-          .order('row_index', { ascending: true })
-          .limit(1)
-          .single();
+        
+        // Second priority: add new items if we haven't reached limit
+        if (itemsProcessed < itemsToProcess) {
+          const { data: queuedItem } = await supabase
+            .from('upload_items')
+            .select('*')
+            .eq('upload_id', uploadId)
+            .eq('state', 'queued')
+            .order('row_index', { ascending: true })
+            .limit(1)
+            .single();
 
-        if (queuedItem) {
-          const result = await processAddChat(queuedItem, workspace, uploads[0], supabase);
-          results.push(result);
+          if (queuedItem) {
+            const addResult = await processAddChat(queuedItem, workspace, uploads[0], supabase);
+            results.push(addResult);
+            itemsProcessed++;
+            processed = true;
+            
+            // Update last_outbound_at after each request
+            await supabase
+              .from('workspaces')
+              .update({ last_outbound_at: new Date().toISOString() })
+              .eq('workspace_hash', workspace.workspace_hash);
+              
+            // Add small delay to respect 10-second spacing
+            if (itemsProcessed < itemsToProcess) {
+              await new Promise(resolve => setTimeout(resolve, 100)); // Small delay
+            }
+          }
+        }
+        
+        // If no items were processed in this iteration, break
+        if (!processed) {
+          break;
         }
       }
 
@@ -128,12 +159,6 @@ async function handleTickRequest(request: NextRequest) {
 async function processAddChat(item: UploadItem, workspace: any, upload: any, supabase: any) {
   const workspaceHash = workspace.workspace_hash;
   try {
-    // Update workspace last_outbound_at
-    await supabase
-      .from('workspaces')
-      .update({ last_outbound_at: new Date().toISOString() })
-      .eq('workspace_hash', workspaceHash);
-
     // Update item state
     await supabase
       .from('upload_items')
@@ -259,11 +284,6 @@ async function processAddChat(item: UploadItem, workspace: any, upload: any, sup
 async function processCheckStatus(item: UploadItem, workspace: any, upload: any, supabase: any) {
   const workspaceHash = workspace.workspace_hash;
   try {
-    // Update workspace last_outbound_at
-    await supabase
-      .from('workspaces')
-      .update({ last_outbound_at: new Date().toISOString() })
-      .eq('workspace_hash', workspaceHash);
 
     if (MOCK_CHATGURU) {
       // Mock status as done

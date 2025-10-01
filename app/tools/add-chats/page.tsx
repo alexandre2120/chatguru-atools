@@ -13,6 +13,13 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Progress } from "@/components/ui/progress";
 import type { Upload as UploadType } from "@/types/database";
 
+// Processing configuration - matches the backend rate limiting
+const PROCESSING_CONFIG = {
+  RATE_LIMIT_SECONDS: 10,    // 1 request per 10 seconds per workspace (from tick route)
+  CRON_INTERVAL_MINUTES: 1,  // Cron runs every minute (from vercel.json)
+  TARGET_PER_10MIN: 60,      // Target throughput: 6 per minute = 60 per 10 minutes
+} as const;
+
 interface Credentials {
   server: string;
   key: string;
@@ -300,6 +307,26 @@ export default function AddChatsPage() {
     });
   };
 
+  const getProcessingRateInfo = () => {
+    const { RATE_LIMIT_SECONDS, CRON_INTERVAL_MINUTES, TARGET_PER_10MIN } = PROCESSING_CONFIG;
+    
+    // Calculate actual rate based on system constraints
+    const effectiveRatePerMinute = 60 / RATE_LIMIT_SECONDS; // 60 seconds / rate limit in seconds
+    const actualPer10Min = Math.floor(effectiveRatePerMinute * 10);
+    
+    return {
+      rateText: RATE_LIMIT_SECONDS === 10
+        ? "1 a cada 10 segundos"
+        : RATE_LIMIT_SECONDS === 60
+        ? "1 por minuto"
+        : RATE_LIMIT_SECONDS < 60
+        ? `1 a cada ${RATE_LIMIT_SECONDS} segundos`
+        : `1 a cada ${Math.ceil(RATE_LIMIT_SECONDS/60)} minutos`,
+      estimateText: `~${actualPer10Min} a cada 10 min`,
+      isOptimal: actualPer10Min >= TARGET_PER_10MIN
+    };
+  };
+
   return (
     <div className="p-8 max-w-4xl mx-auto">
       <h1 className="text-3xl font-bold mb-8">Add/Import Chats</h1>
@@ -451,7 +478,7 @@ export default function AddChatsPage() {
 
             <div className="bg-muted p-4 rounded-lg space-y-1">
               <p className="text-sm text-muted-foreground">
-                Processamento: <strong className="text-foreground">1 por minuto</strong> (~10 a cada 10 min)
+                Processamento: <strong className="text-foreground">{getProcessingRateInfo().rateText}</strong> ({getProcessingRateInfo().estimateText})
               </p>
               <p className="text-xs text-muted-foreground">
                 Dados são automaticamente removidos após 45 dias • O uso do limite é permanente

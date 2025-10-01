@@ -8,5 +8,6 @@
       "path": "/api/cleanup/daily",
       "schedule": "0 3 * * *"
     }
-  ]
+  ],
+  "comment": "Note: Vercel cron runs every minute. Rate limiting is handled in the tick route to allow 1 request every 10 seconds per workspace."
 }

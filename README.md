@@ -15,12 +15,12 @@ Sistema de importação em lote para adicionar contatos ao ChatGuru CRM via API,
 
 ## 📋 Sobre o Projeto
 
-O **ChatGuru Atool** é uma ferramenta de integração que permite importar múltiplos contatos para o ChatGuru CRM através de planilhas Excel (XLSX). O sistema processa as requisições respeitando o rate limit da API (1 requisição por minuto por workspace), garantindo conformidade e evitando bloqueios.
+O **ChatGuru Atool** é uma ferramenta de integração que permite importar múltiplos contatos para o ChatGuru CRM através de planilhas Excel (XLSX). O sistema processa as requisições respeitando o rate limit da API (1 requisição a cada 10 segundos por workspace), garantindo conformidade e evitando bloqueios.
 
 ### ✨ Principais Funcionalidades
 
 - 📊 **Upload de Planilhas XLSX** - Importe centenas de contatos de uma só vez
-- ⏱️ **Rate Limiting Automático** - 1 requisição/minuto por workspace
+- ⏱️ **Rate Limiting Automático** - 1 requisição a cada 10 segundos por workspace
 - 🔄 **Processamento Assíncrono** - Fila automática com Vercel Cron
 - 📈 **Progresso em Tempo Real** - Acompanhe o status via Supabase Realtime
 - 🔒 **Segurança** - Credenciais não são armazenadas no banco de dados
@@ -237,8 +237,8 @@ MOCK_CHATGURU=false
 ### Rate Limiting
 
 O sistema implementa rate limiting automático:
-- **1 requisição por minuto** por workspace
-- **~10 contatos a cada 10 minutos**
+- **1 requisição a cada 10 segundos** por workspace
+- **~60 contatos a cada 10 minutos**
 - Configurado em `/api/jobs/tick/route.ts`
 
 ### Segurança

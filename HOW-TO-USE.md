@@ -9,7 +9,7 @@ O **ChatGuru Atool** é uma ferramenta profissional para importação em massa d
 ### ✨ Recursos Disponíveis
 
 - **📊 Importação via Excel (XLSX)**: Upload de planilhas com múltiplos contatos
-- **⏱️ Rate Limiting Automático**: 1 requisição por minuto (proteção contra bloqueios)
+- **⏱️ Rate Limiting Automático**: 1 requisição a cada 10 segundos (proteção contra bloqueios)
 - **📈 Progresso em Tempo Real**: Acompanhe o status de cada contato
 - **🔄 Reprocessamento de Falhas**: Tente novamente itens que falharam
 - **📥 Exportação de Erros**: Baixe relatório detalhado de falhas
@@ -154,10 +154,10 @@ Progresso
 | **Erro** | Falha na adição | Vermelho |
 
 #### ⏱️ Taxa de Processamento
-- **1 contato por minuto** por workspace
-- **~10 contatos a cada 10 minutos**
-- **100 contatos**: ~1h40min
-- **1000 contatos**: ~16h40min
+- **1 contato a cada 10 segundos** por workspace
+- **~60 contatos a cada 10 minutos**
+- **100 contatos**: ~16min
+- **1000 contatos**: ~2h46min
 
 ### Passo 8: Gerenciar Falhas
 
@@ -181,7 +181,7 @@ Progresso
 ### Como Funciona?
 
 1. **Upload**: Arquivo é validado e itens entram na fila
-2. **Fila**: Sistema processa 1 item por minuto
+2. **Fila**: Sistema processa 1 item a cada 10 segundos
 3. **Adição**: Envia requisição para criar chat no ChatGuru
 4. **Verificação**: Confirma se chat foi criado com sucesso
 5. **Conclusão**: Marca como concluído ou erro
@@ -226,7 +226,7 @@ Na página inicial, após validar credenciais, você vê:
 
 ### Rate Limiting
 
-- **1 requisição/minuto**: Por conjunto de credenciais
+- **1 requisição a cada 10 segundos**: Por conjunto de credenciais
 - **Automático**: Sistema gerencia a fila
 - **Sem configuração**: Taxa fixa, não alterável
 

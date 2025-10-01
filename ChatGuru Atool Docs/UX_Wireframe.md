@@ -12,7 +12,7 @@
 - **Credentials Card**
   - Inputs: server (sX), key, account_id, phone_id
   - Toggle: “Remember in this browser” (localStorage)
-  - Helper text: “Processamento: **1 por minuto** (~10 a cada 10 min).”
+  - Helper text: "Processamento: **1 a cada 10 segundos** (~60 a cada 10 min)."
   - Buttons: Download XLSX template, Upload XLSX
 
 - **Jobs Table (Realtime)**

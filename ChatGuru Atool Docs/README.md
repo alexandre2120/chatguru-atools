@@ -16,6 +16,6 @@ This bundle contains everything you need to brief an AI code generator (e.g., Cl
 - Form-encoded requests to ChatGuru (`application/x-www-form-urlencoded`).
 - Required fields: `key`, `account_id`, `phone_id`, `chat_number` in every call.
 - `chat_add` with optional `user_id`, `dialog_id`, and **optional `text`** (send `" "` when empty).
-- Strict rate: **1 request/min per workspace**; target ≈ **10 per 10 minutes**.
+- Strict rate: **1 request per 10 seconds per workspace**; target ≈ **60 per 10 minutes**.
 - No credentials in DB. Use localStorage and a `workspace_hash` to partition data with RLS.
 - Auto-cleanup after **30 days**.
