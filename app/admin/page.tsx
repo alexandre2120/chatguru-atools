@@ -384,7 +384,7 @@ export default function AdminPage() {
             <Button
               variant="outline"
               size="sm"
-              onClick={fetchDashboardData}
+              onClick={fetchAllData}
               className="gap-2"
             >
               <RefreshCw className="h-4 w-4" />
@@ -402,6 +402,18 @@ export default function AdminPage() {
           </div>
         </div>
 
+        {/* Tabs Navigation */}
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+          <TabsList className="grid w-full grid-cols-5">
+            <TabsTrigger value="overview">Overview</TabsTrigger>
+            <TabsTrigger value="uploads">Uploads</TabsTrigger>
+            <TabsTrigger value="items">Items</TabsTrigger>
+            <TabsTrigger value="logs">Logs</TabsTrigger>
+            <TabsTrigger value="workspaces">Workspaces</TabsTrigger>
+          </TabsList>
+
+          {/* Overview Tab */}
+          <TabsContent value="overview" className="space-y-4">
         {/* Stats Cards */}
         {stats && (
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -503,8 +515,10 @@ export default function AdminPage() {
             </div>
           </CardContent>
         </Card>
+          </TabsContent>
 
-        {/* Logs Table */}
+          {/* Logs Tab */}
+          <TabsContent value="logs" className="space-y-4">
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -580,6 +594,235 @@ export default function AdminPage() {
             </div>
           </CardContent>
         </Card>
+          </TabsContent>
+
+          {/* Uploads Tab */}
+          <TabsContent value="uploads" className="space-y-4">
+            <Card>
+              <CardHeader>
+                <CardTitle>Uploads</CardTitle>
+                <CardDescription>Lista de todos os uploads com filtros</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="flex gap-4">
+                  <Select value={uploadStatusFilter} onValueChange={(v) => setUploadStatusFilter(v === 'all' ? '' : v)}>
+                    <SelectTrigger className="w-[180px]">
+                      <SelectValue placeholder="Status" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Todos</SelectItem>
+                      <SelectItem value="queued">Queued</SelectItem>
+                      <SelectItem value="running">Running</SelectItem>
+                      <SelectItem value="checking">Checking</SelectItem>
+                      <SelectItem value="completed">Completed</SelectItem>
+                      <SelectItem value="failed">Failed</SelectItem>
+                      <SelectItem value="canceled">Canceled</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <Input
+                    placeholder="Buscar por filename..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="max-w-sm"
+                  />
+                </div>
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Filename</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead>Progresso</TableHead>
+                        <TableHead>Taxa Sucesso</TableHead>
+                        <TableHead>Data</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {uploads.map((upload) => (
+                        <TableRow key={upload.id}>
+                          <TableCell className="font-medium">{upload.filename}</TableCell>
+                          <TableCell>
+                            <Badge className={getStatusColor(upload.status)}>{upload.status}</Badge>
+                          </TableCell>
+                          <TableCell>{upload.processed_rows}/{upload.total_rows}</TableCell>
+                          <TableCell>
+                            {upload.total_rows > 0 
+                              ? `${((upload.succeeded_rows / upload.total_rows) * 100).toFixed(1)}%`
+                              : '0%'}
+                          </TableCell>
+                          <TableCell className="text-xs">{formatDate(upload.created_at)}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                  {uploads.length === 0 && (
+                    <p className="text-center text-muted-foreground py-8">Nenhum upload encontrado</p>
+                  )}
+                </div>
+                <div className="flex justify-between">
+                  <Button
+                    variant="outline"
+                    onClick={() => setUploadsPage(p => Math.max(1, p - 1))}
+                    disabled={uploadsPage === 1}
+                  >
+                    Anterior
+                  </Button>
+                  <span className="text-sm text-muted-foreground">
+                    Página {uploadsPage} de {uploadsTotalPages}
+                  </span>
+                  <Button
+                    variant="outline"
+                    onClick={() => setUploadsPage(p => p + 1)}
+                    disabled={uploadsPage >= uploadsTotalPages}
+                  >
+                    Próxima
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Items Tab */}
+          <TabsContent value="items" className="space-y-4">
+            <Card>
+              <CardHeader>
+                <CardTitle>Items</CardTitle>
+                <CardDescription>Lista de todos os itens com filtros</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="flex gap-4">
+                  <Select value={itemStateFilter} onValueChange={(v) => setItemStateFilter(v === 'all' ? '' : v)}>
+                    <SelectTrigger className="w-[180px]">
+                      <SelectValue placeholder="Estado" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Todos</SelectItem>
+                      <SelectItem value="queued">Queued</SelectItem>
+                      <SelectItem value="adding">Adding</SelectItem>
+                      <SelectItem value="waiting_batch_check">Waiting Check</SelectItem>
+                      <SelectItem value="done">Done</SelectItem>
+                      <SelectItem value="error">Error</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <Input
+                    placeholder="Buscar por nome ou número..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="max-w-sm"
+                  />
+                </div>
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Chat Number</TableHead>
+                        <TableHead>Nome</TableHead>
+                        <TableHead>Estado</TableHead>
+                        <TableHead>Tentativas</TableHead>
+                        <TableHead>Atualizado</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {items.map((item) => (
+                        <TableRow key={item.id}>
+                          <TableCell className="font-mono text-xs">{item.chat_number}</TableCell>
+                          <TableCell>{item.name}</TableCell>
+                          <TableCell>
+                            <Badge className={getStateColor(item.state)}>{item.state}</Badge>
+                          </TableCell>
+                          <TableCell>{item.attempts}</TableCell>
+                          <TableCell className="text-xs">{formatDate(item.updated_at)}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                  {items.length === 0 && (
+                    <p className="text-center text-muted-foreground py-8">Nenhum item encontrado</p>
+                  )}
+                </div>
+                <div className="flex justify-between">
+                  <Button
+                    variant="outline"
+                    onClick={() => setItemsPage(p => Math.max(1, p - 1))}
+                    disabled={itemsPage === 1}
+                  >
+                    Anterior
+                  </Button>
+                  <span className="text-sm text-muted-foreground">
+                    Página {itemsPage} de {itemsTotalPages}
+                  </span>
+                  <Button
+                    variant="outline"
+                    onClick={() => setItemsPage(p => p + 1)}
+                    disabled={itemsPage >= itemsTotalPages}
+                  >
+                    Próxima
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Workspaces Tab */}
+          <TabsContent value="workspaces" className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {workspaces.map((workspace) => (
+                <Card key={workspace.workspace_hash}>
+                  <CardHeader>
+                    <CardTitle className="text-sm font-mono">
+                      {workspace.workspace_hash.substring(0, 16)}...
+                    </CardTitle>
+                    <CardDescription>
+                      Criado em {formatDate(workspace.created_at)}
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-2">
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">Uploads:</span>
+                      <span className="font-semibold">{workspace.totalUploads}</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">Ativos:</span>
+                      <span className="font-semibold text-blue-600">{workspace.activeUploads}</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">Items:</span>
+                      <span className="font-semibold">{workspace.totalItems}</span>
+                    </div>
+                    <div className="pt-2 border-t">
+                      <p className="text-xs text-muted-foreground mb-2">Estados:</p>
+                      <div className="flex flex-wrap gap-1">
+                        {Object.entries(workspace.itemsByState).map(([state, count]) => (
+                          <Badge key={state} variant="outline" className="text-xs">
+                            {state}: {count}
+                          </Badge>
+                        ))}
+                      </div>
+                    </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="w-full mt-2"
+                      onClick={() => {
+                        setWorkspaceFilter(workspace.workspace_hash);
+                        setActiveTab("uploads");
+                      }}
+                    >
+                      Ver Uploads
+                    </Button>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+            {workspaces.length === 0 && (
+              <Card>
+                <CardContent className="py-8">
+                  <p className="text-center text-muted-foreground">Nenhum workspace encontrado</p>
+                </CardContent>
+              </Card>
+            )}
+          </TabsContent>
+        </Tabs>
       </div>
     </div>
   );
