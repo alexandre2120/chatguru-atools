@@ -8,6 +8,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ChatGuruLogo } from "@/components/chatguru-logo";
 
 interface UploadItem {
@@ -44,6 +46,27 @@ interface Stats {
   itemsByState: Record<string, number>;
 }
 
+interface Upload {
+  id: string;
+  filename: string;
+  status: string;
+  total_rows: number;
+  processed_rows: number;
+  succeeded_rows: number;
+  failed_rows: number;
+  workspace_hash: string;
+  created_at: string;
+}
+
+interface Workspace {
+  workspace_hash: string;
+  created_at: string;
+  totalUploads: number;
+  activeUploads: number;
+  totalItems: number;
+  itemsByState: Record<string, number>;
+}
+
 export default function AdminPage() {
   const [authenticated, setAuthenticated] = useState(false);
   const [secret, setSecret] = useState("");
@@ -53,9 +76,23 @@ export default function AdminPage() {
   // Dashboard data
   const [stats, setStats] = useState<Stats | null>(null);
   const [recentItems, setRecentItems] = useState<UploadItem[]>([]);
+  const [uploads, setUploads] = useState<Upload[]>([]);
+  const [items, setItems] = useState<UploadItem[]>([]);
   const [logs, setLogs] = useState<RunLog[]>([]);
+  const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
+  
   const [logsPage, setLogsPage] = useState(1);
   const [logsTotal, setLogsTotal] = useState(0);
+  const [uploadsPage, setUploadsPage] = useState(1);
+  const [itemsPage, setItemsPage] = useState(1);
+  const [uploadsTotalPages, setUploadsTotalPages] = useState(1);
+  const [itemsTotalPages, setItemsTotalPages] = useState(1);
+  
+  const [activeTab, setActiveTab] = useState("overview");
+  const [uploadStatusFilter, setUploadStatusFilter] = useState<string>("");
+  const [itemStateFilter, setItemStateFilter] = useState<string>("");
+  const [workspaceFilter, setWorkspaceFilter] = useState<string>("");
+  const [searchTerm, setSearchTerm] = useState<string>("");
   const [autoRefresh, setAutoRefresh] = useState(false);
 
   useEffect(() => {
@@ -69,19 +106,19 @@ export default function AdminPage() {
 
   useEffect(() => {
     if (authenticated) {
-      fetchDashboardData();
+      fetchAllData();
     }
-  }, [authenticated, logsPage]);
+  }, [authenticated, activeTab, uploadsPage, itemsPage, logsPage, uploadStatusFilter, itemStateFilter, workspaceFilter, searchTerm]);
 
   useEffect(() => {
     let interval: NodeJS.Timeout;
     if (authenticated && autoRefresh) {
       interval = setInterval(() => {
-        fetchDashboardData();
+        fetchAllData();
       }, 5000); // Refresh every 5 seconds
     }
     return () => clearInterval(interval);
-  }, [authenticated, autoRefresh, logsPage]);
+  }, [authenticated, autoRefresh, activeTab]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -159,6 +196,83 @@ export default function AdminPage() {
     }
   };
 
+  const fetchUploads = async () => {
+    try {
+      const params = new URLSearchParams({
+        page: uploadsPage.toString(),
+        limit: "50",
+        ...(uploadStatusFilter && { status: uploadStatusFilter }),
+        ...(workspaceFilter && { workspace_hash: workspaceFilter }),
+        ...(searchTerm && { search: searchTerm }),
+      });
+
+      const response = await fetch(`/api/admin/uploads?${params}`, {
+        headers: { "x-admin-secret": secret },
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setUploads(data.uploads);
+        setUploadsTotalPages(data.totalPages);
+      }
+    } catch (err) {
+      console.error("Error fetching uploads:", err);
+    }
+  };
+
+  const fetchItems = async () => {
+    try {
+      const params = new URLSearchParams({
+        page: itemsPage.toString(),
+        limit: "50",
+        ...(itemStateFilter && { state: itemStateFilter }),
+        ...(workspaceFilter && { workspace_hash: workspaceFilter }),
+        ...(searchTerm && { search: searchTerm }),
+      });
+
+      const response = await fetch(`/api/admin/items?${params}`, {
+        headers: { "x-admin-secret": secret },
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setItems(data.items);
+        setItemsTotalPages(data.totalPages);
+      }
+    } catch (err) {
+      console.error("Error fetching items:", err);
+    }
+  };
+
+  const fetchWorkspaces = async () => {
+    try {
+      const response = await fetch("/api/admin/workspaces", {
+        headers: { "x-admin-secret": secret },
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setWorkspaces(data.workspaces);
+      }
+    } catch (err) {
+      console.error("Error fetching workspaces:", err);
+    }
+  };
+
+  const fetchAllData = async () => {
+    if (activeTab === "overview") {
+      await fetchDashboardData();
+    } else if (activeTab === "uploads") {
+      await fetchUploads();
+    } else if (activeTab === "items") {
+      await fetchItems();
+    } else if (activeTab === "logs") {
+      // Logs are fetched in fetchDashboardData
+    } else if (activeTab === "workspaces") {
+      await fetchWorkspaces();
+    }
+  };
+
   const getStateColor = (state: string) => {
     switch (state) {
       case "queued": return "bg-gray-500";
@@ -166,6 +280,18 @@ export default function AdminPage() {
       case "waiting_batch_check": return "bg-purple-500";
       case "done": return "bg-green-500";
       case "error": return "bg-red-500";
+      default: return "bg-gray-500";
+    }
+  };
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case "queued": return "bg-gray-500";
+      case "running": return "bg-blue-500";
+      case "checking": return "bg-purple-500";
+      case "completed": return "bg-green-500";
+      case "failed": return "bg-red-500";
+      case "canceled": return "bg-yellow-500";
       default: return "bg-gray-500";
     }
   };
