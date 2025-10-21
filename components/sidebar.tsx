@@ -2,15 +2,20 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { MessageSquarePlus } from "lucide-react";
+import { MessageSquarePlus, Shield } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { ChatGuruLogo } from "@/components/chatguru-logo";
 
 const sidebarItems = [
   {
     icon: MessageSquarePlus,
     href: "/tools/add-chats",
     title: "Add/Import Chats",
-    active: true,
+  },
+  {
+    icon: Shield,
+    href: "/admin",
+    title: "Admin Panel",
   },
 ];
 
@@ -18,32 +23,32 @@ export default function Sidebar() {
   const pathname = usePathname();
 
   return (
-    <div className="w-16 bg-white border-r border-gray-200 flex flex-col items-center py-4 h-full">
+    <div className="w-16 bg-card border-r border-border flex flex-col items-center py-4 h-full shadow-sm">
       <div className="flex flex-col items-center space-y-4 flex-1">
-        <div className="w-12 h-12 bg-black rounded-full flex items-center justify-center mb-4">
-          <span className="text-white font-bold text-[8px] leading-tight text-center">Chat<br/>Guru</span>
-        </div>
+        <Link href="/" className="mb-4 hover:opacity-80 transition-opacity">
+          <ChatGuruLogo iconOnly className="w-12 h-12" />
+        </Link>
         
         {sidebarItems.map((item, index) => {
           const Icon = item.icon;
-          const isActive = item.active && pathname?.startsWith(item.href);
+          const isActive = pathname?.startsWith(item.href);
           
           return (
             <div key={index} className="relative group">
               <Link
                 href={item.href}
                 className={cn(
-                  "w-10 h-10 rounded-full flex items-center justify-center transition-colors",
+                  "w-10 h-10 rounded-lg flex items-center justify-center transition-all duration-200",
                   isActive
-                    ? "bg-black text-white"
-                    : "bg-white text-black hover:bg-gray-100 border border-gray-300"
+                    ? "bg-primary text-primary-foreground shadow-md scale-105"
+                    : "bg-muted text-muted-foreground hover:bg-accent hover:text-accent-foreground hover:scale-105"
                 )}
                 aria-label={item.title}
               >
                 <Icon size={20} />
               </Link>
               
-              <div className="absolute left-full ml-2 px-2 py-1 bg-black text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-10">
+              <div className="absolute left-full ml-2 px-2 py-1 bg-primary text-primary-foreground text-xs rounded-md opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-10 shadow-lg">
                 {item.title}
               </div>
             </div>
@@ -51,12 +56,12 @@ export default function Sidebar() {
         })}
       </div>
       
-      <div className="mt-auto pt-4 border-t border-gray-200">
+      <div className="mt-auto pt-4 border-t border-border">
         <a 
           href="https://chatguru.com.br" 
           target="_blank" 
           rel="noopener noreferrer"
-          className="text-[10px] text-gray-500 hover:text-gray-700 transition-colors writing-mode-vertical-rl transform rotate-180"
+          className="text-[10px] text-muted-foreground hover:text-primary transition-colors writing-mode-vertical-rl transform rotate-180"
         >
           Developed by ChatGuru
         </a>
