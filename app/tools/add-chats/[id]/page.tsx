@@ -194,9 +194,11 @@ export default function UploadDetailsPage({ params }: PageProps) {
     switch (state) {
       case 'queued': return 'text-gray-500';
       case 'adding': return 'text-blue-500';
-      case 'waiting_status': return 'text-yellow-500';
+      case 'waiting_batch_check': return 'text-purple-500';
       case 'done': return 'text-green-500';
       case 'error': return 'text-red-500';
+      // Legacy states (should not appear in new uploads)
+      case 'waiting_status': return 'text-yellow-500';
       default: return 'text-gray-500';
     }
   };
@@ -205,9 +207,11 @@ export default function UploadDetailsPage({ params }: PageProps) {
     switch (state) {
       case 'queued': return 'Na fila';
       case 'adding': return 'Adicionando';
-      case 'waiting_status': return 'Verificando';
+      case 'waiting_batch_check': return 'Aguardando verificação';
       case 'done': return 'Concluído';
       case 'error': return 'Erro';
+      // Legacy states (should not appear in new uploads)
+      case 'waiting_status': return 'Verificando (legado)';
       default: return state;
     }
   };

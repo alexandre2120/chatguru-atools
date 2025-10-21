@@ -280,6 +280,7 @@ export default function AddChatsPage() {
     const statusConfig = {
       queued: { label: "Na fila", className: "bg-gray-100 text-gray-800" },
       running: { label: "Processando", className: "bg-blue-100 text-blue-800" },
+      checking: { label: "Verificando", className: "bg-purple-100 text-purple-800" },
       completed: { label: "Concluído", className: "bg-green-100 text-green-800" },
       failed: { label: "Falhou", className: "bg-red-100 text-red-800" },
       canceled: { label: "Cancelado", className: "bg-yellow-100 text-yellow-800" },

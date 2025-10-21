@@ -9,6 +9,9 @@ export function createServerClient(workspaceHash?: string) {
       persistSession: false,
       autoRefreshToken: false,
     },
+    global: {
+      fetch: fetch.bind(globalThis),
+    },
   })
 
   // For now, we're not using RLS with workspace_hash

@@ -1,6 +1,8 @@
 export interface Workspace {
   workspace_hash: string;
   last_outbound_at?: string | null;
+  last_addition_at?: string | null;
+  checking_started_at?: string | null;
   created_at: string;
 }
 
@@ -12,7 +14,7 @@ export interface Upload {
   processed_rows: number;
   succeeded_rows: number;
   failed_rows: number;
-  status: 'queued' | 'running' | 'completed' | 'failed' | 'canceled';
+  status: 'queued' | 'running' | 'checking' | 'completed' | 'failed' | 'canceled';
   started_at?: string | null;
   completed_at?: string | null;
   created_at: string;
@@ -28,7 +30,7 @@ export interface UploadItem {
   text?: string | null;
   user_id?: string | null;
   dialog_id?: string | null;
-  state: 'queued' | 'adding' | 'waiting_status' | 'done' | 'error';
+  state: 'queued' | 'adding' | 'waiting_batch_check' | 'done' | 'error';
   chat_add_id?: string | null;
   last_error_code?: number | null;
   last_error_message?: string | null;
