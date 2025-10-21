@@ -8,6 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
+import { ChatGuruLogo } from "@/components/chatguru-logo";
 
 interface UploadItem {
   id: string;
@@ -191,11 +192,11 @@ export default function AdminPage() {
   // Login Screen
   if (!authenticated) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-50 to-gray-100 p-4">
-        <Card className="w-full max-w-md">
-          <CardHeader className="text-center">
-            <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-gray-900">
-              <Shield className="h-6 w-6 text-white" />
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background via-background to-muted/20 p-4">
+        <Card className="w-full max-w-md shadow-lg">
+          <CardHeader className="text-center space-y-4">
+            <div className="mx-auto">
+              <ChatGuruLogo className="justify-center" />
             </div>
             <CardTitle className="text-2xl">Admin Access</CardTitle>
             <CardDescription>Digite o secret para acessar o painel</CardDescription>
@@ -232,13 +233,14 @@ export default function AdminPage() {
 
   // Admin Dashboard
   return (
-    <div className="min-h-screen bg-gray-50 p-8">
+    <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/20 p-8">
       <div className="max-w-7xl mx-auto space-y-6">
         {/* Header */}
         <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold flex items-center gap-2">
-              <Shield className="h-8 w-8" />
+          <div className="space-y-2">
+            <ChatGuruLogo />
+            <h1 className="text-2xl font-bold flex items-center gap-2 text-foreground">
+              <Shield className="h-6 w-6" />
               Admin Dashboard
             </h1>
             <p className="text-muted-foreground">Monitoramento em tempo real do sistema</p>
