@@ -25,22 +25,38 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const page = parseInt(searchParams.get('page') || '1', 10);
     const limit = Math.min(parseInt(searchParams.get('limit') || '100', 10), 100);
+    const level = searchParams.get('level');
+    const search = searchParams.get('search');
     
     const offset = (page - 1) * limit;
 
     const supabase = createServerClient();
 
-    // Get total count
-    const { count: total } = await supabase
+    let countQuery = supabase
       .from('run_logs')
       .select('id', { count: 'exact', head: true });
 
-    // Get logs with pagination
-    const { data: logs } = await supabase
+    let logsQuery = supabase
       .from('run_logs')
       .select('*')
-      .order('at', { ascending: false })
-      .range(offset, offset + limit - 1);
+      .order('at', { ascending: false });
+
+    // Apply filters
+    if (level && level !== 'all') {
+      countQuery = countQuery.eq('level', level);
+      logsQuery = logsQuery.eq('level', level);
+    }
+
+    if (search) {
+      countQuery = countQuery.ilike('message', `%${search}%`);
+      logsQuery = logsQuery.ilike('message', `%${search}%`);
+    }
+
+    // Get total count
+    const { count: total } = await countQuery;
+
+    // Get logs with pagination
+    const { data: logs } = await logsQuery.range(offset, offset + limit - 1);
 
     return NextResponse.json({
       logs: logs || [],

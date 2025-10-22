@@ -11,6 +11,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Checkbox } from "@/components/ui/checkbox";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Progress } from "@/components/ui/progress";
+import { ChatGuruLogo } from "@/components/chatguru-logo";
 import type { Upload as UploadType } from "@/types/database";
 
 // Processing configuration - matches the backend rate limiting
@@ -331,6 +332,9 @@ export default function AddChatsPage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/20">
       <div className="p-8 max-w-4xl mx-auto">
+        <div className="mb-8">
+          <ChatGuruLogo />
+        </div>
         <h1 className="text-3xl font-bold mb-8 text-foreground">Add/Import Chats</h1>
         
         <div className="space-y-6">

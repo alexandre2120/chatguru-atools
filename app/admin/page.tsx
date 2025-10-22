@@ -93,6 +93,8 @@ export default function AdminPage() {
   const [itemStateFilter, setItemStateFilter] = useState<string>("");
   const [workspaceFilter, setWorkspaceFilter] = useState<string>("");
   const [searchTerm, setSearchTerm] = useState<string>("");
+  const [logLevelFilter, setLogLevelFilter] = useState<string>("");
+  const [logSearchTerm, setLogSearchTerm] = useState<string>("");
   const [autoRefresh, setAutoRefresh] = useState(false);
 
   useEffect(() => {
@@ -108,7 +110,7 @@ export default function AdminPage() {
     if (authenticated) {
       fetchAllData();
     }
-  }, [authenticated, activeTab, uploadsPage, itemsPage, logsPage, uploadStatusFilter, itemStateFilter, workspaceFilter, searchTerm]);
+  }, [authenticated, activeTab, uploadsPage, itemsPage, logsPage, uploadStatusFilter, itemStateFilter, workspaceFilter, searchTerm, logLevelFilter, logSearchTerm]);
 
   useEffect(() => {
     let interval: NodeJS.Timeout;
@@ -177,10 +179,18 @@ export default function AdminPage() {
     } catch (err) {
       console.error("Error fetching dashboard:", err);
     }
+  };
 
-    // Fetch logs
+  const fetchLogs = async () => {
     try {
-      const response = await fetch(`/api/admin/logs?page=${logsPage}&limit=100`, {
+      const params = new URLSearchParams({
+        page: logsPage.toString(),
+        limit: "100",
+        ...(logLevelFilter && { level: logLevelFilter }),
+        ...(logSearchTerm && { search: logSearchTerm }),
+      });
+
+      const response = await fetch(`/api/admin/logs?${params}`, {
         headers: {
           "x-admin-secret": secret,
         },
@@ -260,6 +270,11 @@ export default function AdminPage() {
   };
 
   const fetchAllData = async () => {
+    // Always fetch workspaces for filters
+    if (workspaces.length === 0) {
+      await fetchWorkspaces();
+    }
+    
     if (activeTab === "overview") {
       await fetchDashboardData();
     } else if (activeTab === "uploads") {
@@ -267,7 +282,7 @@ export default function AdminPage() {
     } else if (activeTab === "items") {
       await fetchItems();
     } else if (activeTab === "logs") {
-      // Logs are fetched in fetchDashboardData
+      await fetchLogs();
     } else if (activeTab === "workspaces") {
       await fetchWorkspaces();
     }
@@ -529,7 +544,28 @@ export default function AdminPage() {
               Página {logsPage} • Total: {logsTotal} logs
             </CardDescription>
           </CardHeader>
-          <CardContent>
+          <CardContent className="space-y-4">
+            {/* Filters */}
+            <div className="flex gap-4">
+              <Select value={logLevelFilter || 'all'} onValueChange={(v) => setLogLevelFilter(v === 'all' ? '' : v)}>
+                <SelectTrigger className="w-[180px]">
+                  <SelectValue placeholder="Nível" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos os níveis</SelectItem>
+                  <SelectItem value="info">Info</SelectItem>
+                  <SelectItem value="warning">Warning</SelectItem>
+                  <SelectItem value="error">Error</SelectItem>
+                  <SelectItem value="debug">Debug</SelectItem>
+                </SelectContent>
+              </Select>
+              <Input
+                placeholder="Buscar na mensagem..."
+                value={logSearchTerm}
+                onChange={(e) => setLogSearchTerm(e.target.value)}
+                className="max-w-sm"
+              />
+            </div>
             <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
@@ -604,8 +640,8 @@ export default function AdminPage() {
                 <CardDescription>Lista de todos os uploads com filtros</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="flex gap-4">
-                  <Select value={uploadStatusFilter} onValueChange={(v) => setUploadStatusFilter(v === 'all' ? '' : v)}>
+                <div className="flex gap-4 flex-wrap">
+                  <Select value={uploadStatusFilter || 'all'} onValueChange={(v) => setUploadStatusFilter(v === 'all' ? '' : v)}>
                     <SelectTrigger className="w-[180px]">
                       <SelectValue placeholder="Status" />
                     </SelectTrigger>
@@ -617,6 +653,19 @@ export default function AdminPage() {
                       <SelectItem value="completed">Completed</SelectItem>
                       <SelectItem value="failed">Failed</SelectItem>
                       <SelectItem value="canceled">Canceled</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <Select value={workspaceFilter || 'all'} onValueChange={(v) => setWorkspaceFilter(v === 'all' ? '' : v)}>
+                    <SelectTrigger className="w-[200px]">
+                      <SelectValue placeholder="Workspace" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Todos workspaces</SelectItem>
+                      {workspaces.map((ws) => (
+                        <SelectItem key={ws.workspace_hash} value={ws.workspace_hash}>
+                          {ws.workspace_hash.substring(0, 12)}...
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                   <Input
@@ -690,8 +739,8 @@ export default function AdminPage() {
                 <CardDescription>Lista de todos os itens com filtros</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="flex gap-4">
-                  <Select value={itemStateFilter} onValueChange={(v) => setItemStateFilter(v === 'all' ? '' : v)}>
+                <div className="flex gap-4 flex-wrap">
+                  <Select value={itemStateFilter || 'all'} onValueChange={(v) => setItemStateFilter(v === 'all' ? '' : v)}>
                     <SelectTrigger className="w-[180px]">
                       <SelectValue placeholder="Estado" />
                     </SelectTrigger>
@@ -702,6 +751,19 @@ export default function AdminPage() {
                       <SelectItem value="waiting_batch_check">Waiting Check</SelectItem>
                       <SelectItem value="done">Done</SelectItem>
                       <SelectItem value="error">Error</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <Select value={workspaceFilter || 'all'} onValueChange={(v) => setWorkspaceFilter(v === 'all' ? '' : v)}>
+                    <SelectTrigger className="w-[200px]">
+                      <SelectValue placeholder="Workspace" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Todos workspaces</SelectItem>
+                      {workspaces.map((ws) => (
+                        <SelectItem key={ws.workspace_hash} value={ws.workspace_hash}>
+                          {ws.workspace_hash.substring(0, 12)}...
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                   <Input

@@ -20,6 +20,8 @@ export default function UploadDetailsPage({ params }: PageProps) {
   const [items, setItems] = useState<UploadItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 100;
 
   useEffect(() => {
     fetchUploadData();
@@ -236,6 +238,12 @@ export default function UploadDetailsPage({ params }: PageProps) {
     ? (upload.processed_rows / upload.total_rows) * 100 
     : 0;
 
+  // Pagination calculations
+  const totalPages = Math.ceil(items.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const currentItems = items.slice(startIndex, endIndex);
+
   return (
     <div className="p-8 max-w-6xl mx-auto">
       <div className="mb-6">
@@ -322,9 +330,11 @@ export default function UploadDetailsPage({ params }: PageProps) {
         <Card>
           <CardHeader>
             <CardTitle>Itens</CardTitle>
-            <CardDescription>Lista de contatos sendo processados</CardDescription>
+            <CardDescription>
+              Mostrando {startIndex + 1}-{Math.min(endIndex, items.length)} de {items.length} itens
+            </CardDescription>
           </CardHeader>
-          <CardContent>
+          <CardContent className="space-y-4">
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
@@ -337,7 +347,7 @@ export default function UploadDetailsPage({ params }: PageProps) {
                   </tr>
                 </thead>
                 <tbody>
-                  {items.slice(0, 100).map((item) => (
+                  {currentItems.map((item) => (
                     <tr key={item.id} className="border-b">
                       <td className="p-2">{item.row_index}</td>
                       <td className="p-2">{item.chat_number}</td>
@@ -352,12 +362,32 @@ export default function UploadDetailsPage({ params }: PageProps) {
                   ))}
                 </tbody>
               </table>
-              {items.length > 100 && (
-                <p className="text-sm text-muted-foreground p-2">
-                  Mostrando 100 de {items.length} itens
-                </p>
-              )}
             </div>
+
+            {/* Pagination Controls */}
+            {totalPages > 1 && (
+              <div className="flex items-center justify-between pt-4">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                  disabled={currentPage === 1}
+                >
+                  Anterior
+                </Button>
+                <span className="text-sm text-muted-foreground">
+                  Página {currentPage} de {totalPages}
+                </span>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                  disabled={currentPage === totalPages}
+                >
+                  Próxima
+                </Button>
+              </div>
+            )}
           </CardContent>
         </Card>
         
